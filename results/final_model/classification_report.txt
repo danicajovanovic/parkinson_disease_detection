@@ -1,4 +1,6 @@
 Final model: Random Forest
+Decision threshold: 0.35
+
 Selected features:
 - PPE
 - spread1
