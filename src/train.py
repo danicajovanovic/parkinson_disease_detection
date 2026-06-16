@@ -13,6 +13,7 @@ from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier
 
 from preprocessing import load_data, prepare_features_and_target, split_data
+from metrics import SCORING, scores_to_row
 
 
 BASE_DIR = Path(__file__).resolve().parents[1]
@@ -38,14 +39,6 @@ def get_models():
 def evaluate_models(X_train, y_train, models):
     results = []
 
-    scoring = {
-        "accuracy": "accuracy",
-        "precision": "precision",
-        "recall": "recall",
-        "f1": "f1",
-        "roc_auc": "roc_auc",
-    }
-
     for model_name, model in models.items():
         pipeline = Pipeline([
             ("scaler", StandardScaler()),
@@ -57,16 +50,12 @@ def evaluate_models(X_train, y_train, models):
             X_train,
             y_train,
             cv=5,
-            scoring=scoring
+            scoring=SCORING
         )
 
         results.append({
             "Model": model_name,
-            "Accuracy": scores["test_accuracy"].mean(),
-            "Precision": scores["test_precision"].mean(),
-            "Recall": scores["test_recall"].mean(),
-            "F1-score": scores["test_f1"].mean(),
-            "ROC-AUC": scores["test_roc_auc"].mean(),
+            **scores_to_row(scores),
         })
 
     return pd.DataFrame(results)

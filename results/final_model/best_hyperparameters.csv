@@ -1,2 +1,2 @@
-Best CV Recall,model__max_depth,model__min_samples_leaf,model__min_samples_split,model__n_estimators
-0.975,,1,2,100
+Best CV F1-score,model__max_depth,model__min_samples_leaf,model__min_samples_split,model__n_estimators
+0.9295824830647085,,1,2,300

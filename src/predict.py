@@ -19,16 +19,48 @@ def load_prediction_artifacts():
     return model, selected_features, decision_threshold
 
 
-def predict_parkinson(input_data):
-    model, selected_features, decision_threshold = load_prediction_artifacts()
-
-    input_df = pd.DataFrame([input_data])
+def predict_from_features(model, selected_features, decision_threshold, input_df):
+    """
+    Predikcija na osnovu DataFrame-a koji već sadrži (ili sadrži bar) kolone
+    iz selected_features. Ovo je jedino mesto gde se računa probability i
+    finalna odluka, da se ta logika ne bi ponavljala na više mesta.
+    """
     input_df = input_df[selected_features]
 
     probability = model.predict_proba(input_df)[0][1]
     prediction = 1 if probability >= decision_threshold else 0
 
+    return prediction, probability
+
+
+def predict_parkinson(input_data):
+    """
+    Convenience wrapper: učitava artefakte i predviđa na osnovu dict-a sa
+    sirovim vrednostima atributa (npr. iz UI forme).
+    """
+    model, selected_features, decision_threshold = load_prediction_artifacts()
+
+    input_df = pd.DataFrame([input_data])
+    prediction, probability = predict_from_features(
+        model, selected_features, decision_threshold, input_df
+    )
+
     return prediction, probability, decision_threshold
+
+
+def _print_example(label, model, selected_features, decision_threshold, sample):
+    prediction, probability = predict_from_features(
+        model, selected_features, decision_threshold, sample
+    )
+
+    print(f"\n===== {label} =====")
+    print(f"Decision threshold: {decision_threshold:.2f}")
+    print(f"Parkinson probability: {probability:.2%}")
+
+    if prediction == 1:
+        print("Parkinson disease risk detected")
+    else:
+        print("Healthy voice pattern")
 
 
 def main():
@@ -41,45 +73,14 @@ def main():
 
     model, selected_features, decision_threshold = load_prediction_artifacts()
 
-    X_test = X_test[selected_features]
-
-    print("\n===== HEALTHY EXAMPLE =====")
-
-    for i in range(len(y_test)):
-        if y_test.iloc[i] == 0:
-            sample = X_test.iloc[i:i + 1]
-
-            probability = model.predict_proba(sample)[0][1]
-            prediction = 1 if probability >= decision_threshold else 0
-
-            print(f"Decision threshold: {decision_threshold:.2f}")
-            print(f"Parkinson probability: {probability:.2%}")
-
-            if prediction == 1:
-                print("Parkinson disease risk detected")
-            else:
-                print("Healthy voice pattern")
-
-            break
-
-    print("\n===== PARKINSON EXAMPLE =====")
-
-    for i in range(len(y_test)):
-        if y_test.iloc[i] == 1:
-            sample = X_test.iloc[i:i + 1]
-
-            probability = model.predict_proba(sample)[0][1]
-            prediction = 1 if probability >= decision_threshold else 0
-
-            print(f"Decision threshold: {decision_threshold:.2f}")
-            print(f"Parkinson probability: {probability:.2%}")
-
-            if prediction == 1:
-                print("Parkinson disease risk detected")
-            else:
-                print("Healthy voice pattern")
-
-            break
+    for label, status_value in [("HEALTHY EXAMPLE", 0), ("PARKINSON EXAMPLE", 1)]:
+        for i in range(len(y_test)):
+            if y_test.iloc[i] == status_value:
+                sample = X_test.iloc[i:i + 1]
+                _print_example(
+                    label, model, selected_features, decision_threshold, sample
+                )
+                break
 
 
 if __name__ == "__main__":

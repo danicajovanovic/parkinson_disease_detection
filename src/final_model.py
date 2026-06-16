@@ -3,25 +3,15 @@ from pathlib import Path
 import joblib
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import GridSearchCV
-from sklearn.metrics import (
-    accuracy_score,
-    precision_score,
-    recall_score,
-    f1_score,
-    roc_auc_score,
-    roc_curve,
-    classification_report,
-    ConfusionMatrixDisplay,
-    RocCurveDisplay,
-)
+from sklearn.model_selection import GridSearchCV, cross_val_predict
+from sklearn.metrics import roc_curve
 
 from preprocessing import load_data, prepare_features_and_target, split_data
+from evaluate import evaluate_model, save_confusion_matrix, save_roc_curve
 
 
 BASE_DIR = Path(__file__).resolve().parents[1]
@@ -58,7 +48,9 @@ SELECTED_FEATURES = [
 def build_pipeline():
     return Pipeline([
         ("scaler", StandardScaler()),
-        ("model", RandomForestClassifier(random_state=42))
+        # class_weight="balanced" - dataset je neravnomeran (147 Parkinson vs
+        # 48 zdravih), pa bez ovoga model favorizuje većinsku klasu.
+        ("model", RandomForestClassifier(random_state=42, class_weight="balanced"))
     ])
 
 
@@ -76,7 +68,9 @@ def tune_hyperparameters(X_train, y_train):
         estimator=pipeline,
         param_grid=param_grid,
         cv=5,
-        scoring="recall",
+        # f1 balansira precision i recall - "recall" bi nagrađivao model koji
+        # uvek predviđa Parkinson, što šteti precision-u zdrave klase.
+        scoring="f1",
         n_jobs=-1
     )
 
@@ -105,32 +99,35 @@ def main():
     X_train, X_test, y_train, y_test = split_data(X, y)
 
     X_train_selected = X_train[SELECTED_FEATURES]
-    X_test_selected = X_test[SELECTED_FEATURES]
 
-    model, best_params, best_cv_recall = tune_hyperparameters(
+    model, best_params, best_cv_f1 = tune_hyperparameters(
         X_train_selected,
         y_train
     )
 
-    y_prob = model.predict_proba(X_test_selected)[:, 1]
+    # The decision threshold must not be chosen using the test set, otherwise
+    # the test labels leak into the model selection process and the final
+    # metrics become optimistically biased. Instead, the threshold is chosen
+    # using out-of-fold predicted probabilities on the training set only.
+    cv_probabilities = cross_val_predict(
+        model,
+        X_train_selected,
+        y_train,
+        cv=5,
+        method="predict_proba"
+    )[:, 1]
 
-    decision_threshold = find_optimal_threshold(y_test, y_prob)
-    y_pred = (y_prob >= decision_threshold).astype(int)
+    decision_threshold = find_optimal_threshold(y_train, cv_probabilities)
 
-    metrics = {
-        "Threshold": decision_threshold,
-        "Best CV Recall": best_cv_recall,
-        "Accuracy": accuracy_score(y_test, y_pred),
-        "Precision": precision_score(y_test, y_pred),
-        "Recall": recall_score(y_test, y_pred),
-        "F1-score": f1_score(y_test, y_pred),
-        "ROC-AUC": roc_auc_score(y_test, y_prob),
-    }
+    eval_metrics, report, y_pred, y_prob = evaluate_model(
+        model, SELECTED_FEATURES, decision_threshold, X_test, y_test
+    )
 
+    metrics = {"Best CV F1-score": best_cv_f1, **eval_metrics}
     metrics_df = pd.DataFrame([metrics])
 
     hyperparameters_df = pd.DataFrame([{
-        "Best CV Recall": best_cv_recall,
+        "Best CV F1-score": best_cv_f1,
         **best_params
     }])
 
@@ -142,11 +139,9 @@ def main():
 
     print("\nBest hyperparameters:")
     print(best_params)
-    print(f"Best CV Recall: {best_cv_recall:.4f}")
+    print(f"Best CV F1-score: {best_cv_f1:.4f}")
 
     print(f"\nOptimal decision threshold: {decision_threshold:.4f}")
-
-    report = classification_report(y_test, y_pred)
 
     print("\nClassification report:")
     print(report)
@@ -169,7 +164,10 @@ def main():
     with open(REPORT_PATH, "w", encoding="utf-8") as file:
         file.write("Final model: Random Forest\n")
         file.write("Hyperparameter tuning: GridSearchCV\n")
-        file.write("Threshold selection method: ROC curve + Youden's index\n\n")
+        file.write(
+            "Threshold selection method: ROC curve + Youden's index "
+            "(cross-validated on the training set, not the test set)\n\n"
+        )
 
         file.write("Selected features:\n")
         for feature in SELECTED_FEATURES:
@@ -179,29 +177,14 @@ def main():
         for key, value in best_params.items():
             file.write(f"{key}: {value}\n")
 
-        file.write(f"\nBest CV Recall: {best_cv_recall:.4f}\n")
+        file.write(f"\nBest CV F1-score: {best_cv_f1:.4f}\n")
         file.write(f"Optimal decision threshold: {decision_threshold:.4f}\n")
 
         file.write("\nClassification report:\n")
         file.write(report)
 
-    ConfusionMatrixDisplay.from_predictions(
-        y_test,
-        y_pred
-    )
-    plt.title("Confusion Matrix - Random Forest")
-    plt.tight_layout()
-    plt.savefig(CONFUSION_MATRIX_PATH)
-    plt.close()
-
-    RocCurveDisplay.from_predictions(
-        y_test,
-        y_prob
-    )
-    plt.title("ROC Curve - Random Forest")
-    plt.tight_layout()
-    plt.savefig(ROC_CURVE_PATH)
-    plt.close()
+    save_confusion_matrix(y_test, y_pred, CONFUSION_MATRIX_PATH)
+    save_roc_curve(y_test, y_prob, ROC_CURVE_PATH)
 
     joblib.dump(model, MODEL_PATH)
     joblib.dump(SELECTED_FEATURES, FEATURES_PATH)

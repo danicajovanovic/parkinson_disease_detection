@@ -9,6 +9,7 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import cross_validate
 
 from preprocessing import load_data, prepare_features_and_target, split_data
+from metrics import SCORING, scores_to_row
 
 
 BASE_DIR = Path(__file__).resolve().parents[1]
@@ -46,14 +47,6 @@ def calculate_feature_importance(X_train, y_train, X_columns):
 def evaluate_feature_subsets(X_train, y_train, ranked_features):
     results = []
 
-    scoring = {
-        "accuracy": "accuracy",
-        "precision": "precision",
-        "recall": "recall",
-        "f1": "f1",
-        "roc_auc": "roc_auc"
-    }
-
     for number_of_features in range(1, len(ranked_features) + 1):
         selected_features = ranked_features[:number_of_features]
 
@@ -64,17 +57,13 @@ def evaluate_feature_subsets(X_train, y_train, ranked_features):
             X_train[selected_features],
             y_train,
             cv=5,
-            scoring=scoring
+            scoring=SCORING
         )
 
         results.append({
             "Number of features": number_of_features,
             "Selected features": ", ".join(selected_features),
-            "Accuracy": scores["test_accuracy"].mean(),
-            "Precision": scores["test_precision"].mean(),
-            "Recall": scores["test_recall"].mean(),
-            "F1-score": scores["test_f1"].mean(),
-            "ROC-AUC": scores["test_roc_auc"].mean()
+            **scores_to_row(scores),
         })
 
     return pd.DataFrame(results)
