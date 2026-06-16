@@ -1,102 +1,80 @@
 # Detekcija Parkinsonove bolesti
 
-Projekat iz oblasti mašinskog učenja koji na osnovu biomedicinskih
-glasovnih mera procenjuje rizik od Parkinsonove bolesti, korišćenjem
-[UCI Oxford Parkinson's Disease Detection dataset-a](https://archive.ics.uci.edu/dataset/174/parkinsons).
+Mašinsko učenje za procenu rizika od Parkinsonove bolesti na osnovu glasovnih
+snimaka, rađeno nad [UCI Parkinson's dataset-om](https://archive.ics.uci.edu/dataset/174/parkinsons).
+Projekat je edukativan — model nije medicinsko sredstvo i njegov izlaz ne
+treba tumačiti kao dijagnozu.
 
-> ⚠️ **Napomena:** Ovo je edukativni projekat. Model nije sertifikovano
-> medicinsko sredstvo i ne sme se koristiti za stvarno postavljanje
-> dijagnoze.
+## Podaci
 
-## Sadržaj
+Dataset sadrži 195 snimaka glasa od 31 osobe, od kojih 23 imaju Parkinsonovu
+bolest. Svaki red je jedan snimak opisan sa 22 akustičke karakteristike
+(jitter, shimmer, odnos šuma i tona, nelinearne mere frekvencije...) i
+ciljnom promenljivom `status` (1 = Parkinson, 0 = zdrava osoba). Pun opis
+kolona je u [data/parkinsons.names](data/parkinsons.names).
 
-- [O dataset-u](#o-dataset-u)
-- [Struktura projekta](#struktura-projekta)
-- [Pipeline](#pipeline)
-- [Metodologija](#metodologija)
-- [Trenutni rezultati](#trenutni-rezultati)
-- [Web interfejs](#web-interfejs)
-- [Instalacija i pokretanje](#instalacija-i-pokretanje)
-
-## O dataset-u
-
-- 195 glasovnih snimaka od 31 osobe (23 sa Parkinsonovom bolešću, 8 zdravih).
-- 22 biomedicinske glasovne karakteristike (jitter, shimmer, odnosi šuma,
-  nelinearne mere varijacije fundamentalne frekvencije, ...) i binarna
-  ciljna promenljiva `status` (1 = Parkinson, 0 = zdrav).
-- Klase su neravnomerno raspodeljene: **147 Parkinson vs 48 zdravih**
-  uzoraka (~75% / 25%), što je uzeto u obzir prilikom treniranja modela
-  (videti [Metodologija](#metodologija)).
-- Pun opis atributa se nalazi u [`data/parkinsons.names`](data/parkinsons.names).
+Bitno je napomenuti da klase nisu ravnomerno raspoređene — 147 uzoraka je
+Parkinson, a samo 48 zdravo — i to je direktno uticalo na to kako je model
+treniran (videti odeljak [Metodologija](#metodologija)).
 
 ## Struktura projekta
 
 ```
-app/            Streamlit web interfejs
-data/           Sirovi dataset
-docs/           Specifikacija i dokumentacija projekta
-models/         Sačuvan model, izabrane karakteristike i decision threshold
-results/        Metrike, grafici i izveštaji koje generiše pipeline
-src/            Skripte pipeline-a (analiza, treniranje, evaluacija, predikcija)
-main.py         Ulazna tačka projekta
+app/      Streamlit interfejs
+data/     Sirovi podaci
+docs/     Specifikacija projekta
+models/   Sačuvan model i prateći artefakti (izabrane karakteristike, threshold)
+results/  Sve što pipeline generiše - metrike, grafici, izveštaji
+src/      Skripte: analiza, treniranje, evaluacija, predikcija
 ```
 
 ## Pipeline
 
-Svaki korak pipeline-a je posebna skripta u `src/` i upisuje rezultate u
-`results/`:
-
-| Korak | Skripta | Izlaz |
-|---|---|---|
-| 1. Eksplorativna analiza podataka | [`src/data_analysis.py`](src/data_analysis.py) | konzolni ispis |
-| 2. Poređenje baznih modela (5-fold CV) | [`src/train.py`](src/train.py) | `results/model_comparison/` |
-| 3. Feature importance i izbor podskupa karakteristika | [`src/feature_selection.py`](src/feature_selection.py) | `results/feature_selection/` |
-| 4. Finalni model: tuning hiperparametara, izbor threshold-a, evaluacija | [`src/final_model.py`](src/final_model.py) | `results/final_model/`, `models/` |
-| 5. Samostalna evaluacija sačuvanog modela | [`src/evaluate.py`](src/evaluate.py) | `results/evaluation/` |
-| 6. Primer predikcija | [`src/predict.py`](src/predict.py) | konzolni ispis |
-
-Pokretanje iz korena projekta, po redosledu:
+Projekat je podeljen u nekoliko skripti koje se pokreću jedna za drugom, iz
+korena projekta:
 
 ```bash
-python src/data_analysis.py
-python src/train.py
-python src/feature_selection.py
-python src/final_model.py
-python src/evaluate.py
-python src/predict.py
+python src/data_analysis.py      # eksplorativna analiza
+python src/train.py              # poređenje nekoliko baznih modela (5-fold CV)
+python src/feature_selection.py  # rangiranje i izbor karakteristika
+python src/final_model.py        # tuning hiperparametara i treniranje finalnog modela
+python src/evaluate.py           # evaluacija sačuvanog modela na test skupu
+python src/predict.py            # par primera predikcije u konzoli
 ```
 
-`main.py` je pomoćna ulazna tačka: ako već postoji istreniran model u
-`models/`, pokreće primer predikcija; ako ne postoji, ispisuje koje
-skripte treba prvo pokrenuti.
+Svaka skripta upisuje svoje rezultate u odgovarajući poddirektorijum unutar
+`results/`. `main.py` je samo prečica: ako model već postoji u `models/`,
+pokreće primer predikcije; ako ne postoji, kaže ti koje skripte treba prvo
+pokrenuti.
 
 ## Metodologija
 
-- **Model:** Random Forest, podešen pomoću `GridSearchCV` (5-fold CV) na
-  9 najznačajnijih karakteristika izabranih u koraku feature selection-a:
-  `PPE`, `spread1`, `MDVP:Fo(Hz)`, `NHR`, `Jitter:DDP`, `MDVP:Fhi(Hz)`,
-  `MDVP:Flo(Hz)`, `spread2`, `Shimmer:APQ5`.
-- **Neravnomerna raspodela klasa:** pošto dataset ima 3x više Parkinson
-  nego zdravih uzoraka, model koristi `class_weight="balanced"`, a
-  pretraga hiperparametara optimizuje **F1-score** (a ne čist recall),
-  čime se izbegava da model favorizuje većinsku klasu.
-- **Decision threshold:** umesto podrazumevanog cutoff-a od 0.5,
-  threshold se bira preko ROC krive i Youden indeksa, koristeći
-  **out-of-fold predikcije na trening skupu** (`cross_val_predict`).
-  Test skup se nikada ne koristi za biranje threshold-a — koristi se
-  isključivo za finalnu, nezavisnu evaluaciju. Ovo je svesna odluka:
-  biranje threshold-a na test skupu bi "iscurelo" test labele u proces
-  selekcije modela i veštački naduvalo izveštene metrike.
-- **Train/test podela:** 80/20, stratifikovano po klasama. Nije izdvojen
-  poseban validation skup (dataset ima samo 195 uzoraka) — i izbor
-  modela i izbor threshold-a se zasnivaju na 5-fold cross-validation na
-  trening skupu.
+Finalni model je Random Forest, podešen pomoću `GridSearchCV` (5-fold CV)
+nad 9 najznačajnijih karakteristika: `PPE`, `spread1`, `MDVP:Fo(Hz)`, `NHR`,
+`Jitter:DDP`, `MDVP:Fhi(Hz)`, `MDVP:Flo(Hz)`, `spread2`, `Shimmer:APQ5`.
 
-## Trenutni rezultati
+Dva detalja su ovde namerno drugačija od "naivnog" pristupa.
 
-Rezultati finalnog modela na test skupu (videti
-[`results/final_model/classification_report.txt`](results/final_model/classification_report.txt)
-i [`results/final_model/final_model_metrics.csv`](results/final_model/final_model_metrics.csv)):
+Pošto u dataset-u ima skoro tri puta više Parkinson nego zdravih uzoraka,
+model koristi `class_weight="balanced"`, a pretraga hiperparametara
+optimizuje F1-score umesto čistog recall-a. Bez ovoga model ima tendenciju
+da skoro sve proglasi Parkinsonom — recall onda izgleda odlično, ali na
+štetu zdrave klase, koja ispadne sistematski lošije prepoznata.
+
+Decision threshold se ne uzima podrazumevano kao 0.5, već se bira preko ROC
+krive i Youden indeksa — ali isključivo na osnovu out-of-fold predikcija na
+trening skupu (`cross_val_predict`), nikad na test skupu. Razlog je
+jednostavan: kad bi se threshold birao gledajući test labele, te labele bi
+efektivno "iscurele" u proces selekcije modela, a izveštene metrike bi
+ispale veštački bolje nego što model zaista jeste.
+
+Train/test podela je 80/20, stratifikovana po klasama. Poseban validation
+skup nije izdvojen jer dataset ima samo 195 uzoraka — i izbor modela i izbor
+threshold-a se oslanjaju na 5-fold cross-validation nad trening skupom.
+
+## Rezultati
+
+Na test skupu, finalni model postiže:
 
 | Metrika | Vrednost |
 |---|---|
@@ -107,32 +85,29 @@ i [`results/final_model/final_model_metrics.csv`](results/final_model/final_mode
 | ROC-AUC | 97.9% |
 | Decision threshold | 0.447 |
 
-Poređenje baznih modela (5-fold CV, pre feature selection-a) se nalazi u
-[`results/model_comparison/model_comparison.csv`](results/model_comparison/model_comparison.csv),
-a uticaj broja izabranih karakteristika na performanse u
-[`results/feature_selection/feature_subset_comparison.csv`](results/feature_selection/feature_subset_comparison.csv).
+Detaljniji izveštaj je u
+[results/final_model/classification_report.txt](results/final_model/classification_report.txt),
+poređenje baznih modela u
+[results/model_comparison/model_comparison.csv](results/model_comparison/model_comparison.csv),
+a kako broj izabranih karakteristika utiče na performanse u
+[results/feature_selection/feature_subset_comparison.csv](results/feature_selection/feature_subset_comparison.csv).
 
-## Web interfejs
-
-Streamlit aplikacija omogućava ručni unos glasovnih biomarkera i
-trenutnu predikciju:
+## Web aplikacija
 
 ```bash
 streamlit run app/ui.py
 ```
 
-Aplikacija koristi istu logiku predikcije iz `src/predict.py` i
-artefakte koje čuva `src/final_model.py`
-(`models/best_model.joblib`, `models/selected_features.joblib`,
-`models/decision_threshold.joblib`).
+Forma za unos glasovnih biomarkera, sa rezultatom predikcije i procenjenom
+verovatnoćom. Koristi isti `predict.py` modul i iste sačuvane artefakte kao
+i ostatak pipeline-a, samo umotane u Streamlit interfejs.
 
-## Instalacija i pokretanje
+## Pokretanje
 
-Projekat koristi [uv](https://docs.astral.sh/uv/) za upravljanje
-zavisnostima.
+Zavisnosti se upravljaju preko [uv](https://docs.astral.sh/uv/):
 
 ```bash
 uv sync
 ```
 
-Zahteva Python >= 3.14 (videti [`pyproject.toml`](pyproject.toml)).
+Potreban je Python 3.14+ (videti `pyproject.toml`).
