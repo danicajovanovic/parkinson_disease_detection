@@ -1,6 +1,6 @@
 Final model: Random Forest
+Hyperparameter tuning: GridSearchCV
 Threshold selection method: ROC curve + Youden's index
-Optimal decision threshold: 0.5700
 
 Selected features:
 - PPE
@@ -12,6 +12,15 @@ Selected features:
 - MDVP:Flo(Hz)
 - spread2
 - Shimmer:APQ5
+
+Best hyperparameters:
+model__max_depth: None
+model__min_samples_leaf: 1
+model__min_samples_split: 2
+model__n_estimators: 100
+
+Best CV Recall: 0.9750
+Optimal decision threshold: 0.5700
 
 Classification report:
               precision    recall  f1-score   support

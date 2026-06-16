@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import GridSearchCV
 from sklearn.metrics import (
     accuracy_score,
     precision_score,
@@ -45,18 +46,41 @@ SELECTED_FEATURES = [
 ]
 
 
-def build_model():
+def build_pipeline():
     return Pipeline([
         ("scaler", StandardScaler()),
         ("model", RandomForestClassifier(random_state=42))
     ])
 
 
+def tune_hyperparameters(X_train, y_train):
+    pipeline = build_pipeline()
+
+    param_grid = {
+        "model__n_estimators": [100, 200, 300],
+        "model__max_depth": [None, 3, 5, 10],
+        "model__min_samples_split": [2, 5, 10],
+        "model__min_samples_leaf": [1, 2, 4],
+    }
+
+    grid_search = GridSearchCV(
+        estimator=pipeline,
+        param_grid=param_grid,
+        cv=5,
+        scoring="recall",
+        n_jobs=-1
+    )
+
+    grid_search.fit(X_train, y_train)
+
+    return (
+        grid_search.best_estimator_,
+        grid_search.best_params_,
+        grid_search.best_score_
+    )
+
+
 def find_optimal_threshold(y_true, y_prob):
-    """
-    Finds the optimal decision threshold using Youden's index.
-    Youden's index = sensitivity + specificity - 1 = TPR - FPR.
-    """
     fpr, tpr, thresholds = roc_curve(y_true, y_prob)
 
     youden_index = tpr - fpr
@@ -77,8 +101,10 @@ def main():
     X_train_selected = X_train[SELECTED_FEATURES]
     X_test_selected = X_test[SELECTED_FEATURES]
 
-    model = build_model()
-    model.fit(X_train_selected, y_train)
+    model, best_params, best_cv_recall = tune_hyperparameters(
+        X_train_selected,
+        y_train
+    )
 
     y_prob = model.predict_proba(X_test_selected)[:, 1]
 
@@ -87,6 +113,7 @@ def main():
 
     metrics = {
         "Threshold": decision_threshold,
+        "Best CV Recall": best_cv_recall,
         "Accuracy": accuracy_score(y_test, y_pred),
         "Precision": precision_score(y_test, y_pred),
         "Recall": recall_score(y_test, y_pred),
@@ -96,12 +123,22 @@ def main():
 
     metrics_df = pd.DataFrame([metrics])
 
+    hyperparameters_df = pd.DataFrame([{
+        "Best CV Recall": best_cv_recall,
+        **best_params
+    }])
+
     print("\nFinal model: Random Forest")
-    print(f"Optimal decision threshold: {decision_threshold:.4f}")
 
     print("\nSelected features:")
     for feature in SELECTED_FEATURES:
         print(f"- {feature}")
+
+    print("\nBest hyperparameters:")
+    print(best_params)
+    print(f"Best CV Recall: {best_cv_recall:.4f}")
+
+    print(f"\nOptimal decision threshold: {decision_threshold:.4f}")
 
     report = classification_report(y_test, y_pred)
 
@@ -125,18 +162,30 @@ def main():
         index=False
     )
 
+    hyperparameters_df.to_csv(
+        RESULTS_DIR / "best_hyperparameters.csv",
+        index=False
+    )
+
     with open(
         RESULTS_DIR / "classification_report.txt",
         "w",
         encoding="utf-8"
     ) as file:
         file.write("Final model: Random Forest\n")
-        file.write("Threshold selection method: ROC curve + Youden's index\n")
-        file.write(f"Optimal decision threshold: {decision_threshold:.4f}\n\n")
+        file.write("Hyperparameter tuning: GridSearchCV\n")
+        file.write("Threshold selection method: ROC curve + Youden's index\n\n")
 
         file.write("Selected features:\n")
         for feature in SELECTED_FEATURES:
             file.write(f"- {feature}\n")
+
+        file.write("\nBest hyperparameters:\n")
+        for key, value in best_params.items():
+            file.write(f"{key}: {value}\n")
+
+        file.write(f"\nBest CV Recall: {best_cv_recall:.4f}\n")
+        file.write(f"Optimal decision threshold: {decision_threshold:.4f}\n")
 
         file.write("\nClassification report:\n")
         file.write(report)
@@ -171,4 +220,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-    
