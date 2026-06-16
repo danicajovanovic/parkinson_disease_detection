@@ -6,75 +6,140 @@ import matplotlib.pyplot as plt
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import cross_validate
 
-from preprocessing import (
-    load_data,
-    prepare_features_and_target,
-    split_data
-)
+from preprocessing import load_data, prepare_features_and_target, split_data
 
 
 BASE_DIR = Path(__file__).resolve().parents[1]
-
 RESULTS_DIR = BASE_DIR / "results"
 
 
-def main():
-
-    df = load_data()
-
-    X, y = prepare_features_and_target(df)
-
-    X_train, X_test, y_train, y_test = split_data(X, y)
-
-    model = Pipeline([
+def build_random_forest():
+    return Pipeline([
         ("scaler", StandardScaler()),
-        ("model", RandomForestClassifier(
-            random_state=42
-        ))
+        ("model", RandomForestClassifier(random_state=42))
     ])
 
+
+def calculate_feature_importance(X_train, y_train, X_columns):
+    model = build_random_forest()
     model.fit(X_train, y_train)
 
     rf = model.named_steps["model"]
 
     importance = pd.DataFrame({
-        "Feature": X.columns,
+        "Feature": X_columns,
         "Importance": rf.feature_importances_
-    })
+    }).sort_values(by="Importance", ascending=False)
 
-    importance = importance.sort_values(
-        by="Importance",
-        ascending=False
-    )
+    return importance
 
+
+def evaluate_feature_subsets(X_train, y_train, ranked_features):
+    results = []
+
+    scoring = {
+        "accuracy": "accuracy",
+        "precision": "precision",
+        "recall": "recall",
+        "f1": "f1",
+        "roc_auc": "roc_auc"
+    }
+
+    for number_of_features in range(1, len(ranked_features) + 1):
+        selected_features = ranked_features[:number_of_features]
+
+        model = build_random_forest()
+
+        scores = cross_validate(
+            model,
+            X_train[selected_features],
+            y_train,
+            cv=5,
+            scoring=scoring
+        )
+
+        results.append({
+            "Number of features": number_of_features,
+            "Selected features": ", ".join(selected_features),
+            "Accuracy": scores["test_accuracy"].mean(),
+            "Precision": scores["test_precision"].mean(),
+            "Recall": scores["test_recall"].mean(),
+            "F1-score": scores["test_f1"].mean(),
+            "ROC-AUC": scores["test_roc_auc"].mean()
+        })
+
+    return pd.DataFrame(results)
+
+
+def plot_feature_importance(importance):
+    plt.figure(figsize=(10, 6))
+    plt.barh(importance["Feature"], importance["Importance"])
+    plt.gca().invert_yaxis()
+    plt.title("Feature Importance - Random Forest")
+    plt.xlabel("Importance")
+    plt.ylabel("Feature")
+    plt.tight_layout()
+    plt.savefig(RESULTS_DIR / "feature_importance.png")
+    plt.close()
+
+
+def plot_feature_subset_results(results):
+    plt.figure(figsize=(8, 5))
+    plt.plot(results["Number of features"], results["F1-score"], marker="o", label="F1-score")
+    plt.plot(results["Number of features"], results["Recall"], marker="o", label="Recall")
+    plt.plot(results["Number of features"], results["ROC-AUC"], marker="o", label="ROC-AUC")
+
+    plt.title("Model performance by number of selected features")
+    plt.xlabel("Number of selected features")
+    plt.ylabel("Score")
+    plt.legend()
+    plt.grid(True)
+    plt.tight_layout()
+    plt.savefig(RESULTS_DIR / "feature_subset_performance.png")
+    plt.close()
+
+
+def main():
+    df = load_data()
+
+    X, y = prepare_features_and_target(df)
+    X_train, X_test, y_train, y_test = split_data(X, y)
+
+    importance = calculate_feature_importance(X_train, y_train, X.columns)
+    importance.to_csv(RESULTS_DIR / "feature_importance.csv", index=False)
+
+    print("\nFeature importance:")
     print(importance)
 
-    importance.to_csv(
-        RESULTS_DIR / "feature_importance.csv",
+    plot_feature_importance(importance)
+
+    ranked_features = importance["Feature"].tolist()
+
+    subset_results = evaluate_feature_subsets(
+        X_train,
+        y_train,
+        ranked_features
+    )
+
+    subset_results.to_csv(
+        RESULTS_DIR / "feature_subset_comparison.csv",
         index=False
     )
 
-    plt.figure(figsize=(10, 6))
+    print("\nFeature subset comparison:")
+    print(subset_results)
 
-    plt.barh(
-        importance["Feature"],
-        importance["Importance"]
-    )
+    plot_feature_subset_results(subset_results)
 
-    plt.gca().invert_yaxis()
+    best_subset = subset_results.sort_values(
+        by=["F1-score", "Recall", "ROC-AUC"],
+        ascending=False
+    ).iloc[0]
 
-    plt.title(
-        "Feature Importance - Random Forest"
-    )
-
-    plt.tight_layout()
-
-    plt.savefig(
-        RESULTS_DIR / "feature_importance.png"
-    )
-
-    plt.show()
+    print("\nBest feature subset based on F1-score, Recall and ROC-AUC:")
+    print(best_subset)
 
 
 if __name__ == "__main__":
