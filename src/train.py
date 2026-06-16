@@ -16,13 +16,14 @@ from preprocessing import load_data, prepare_features_and_target, split_data
 
 
 BASE_DIR = Path(__file__).resolve().parents[1]
-RESULTS_PATH = BASE_DIR / "results" / "model_comparison.csv"
+
+RESULTS_DIR = BASE_DIR / "results" / "model_comparison"
+RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+
+RESULTS_PATH = RESULTS_DIR / "model_comparison.csv"
 
 
 def get_models():
-    """
-    Definiše modele koji će biti trenirani i poređeni.
-    """
     models = {
         "Logistic Regression": LogisticRegression(max_iter=1000),
         "KNN": KNeighborsClassifier(),
@@ -35,9 +36,6 @@ def get_models():
 
 
 def evaluate_models(X_train, y_train, models):
-    """
-    Evaluira svaki model pomoću 5-fold Cross Validation.
-    """
     results = []
 
     scoring = {
@@ -81,7 +79,6 @@ def main():
     X_train, X_test, y_train, y_test = split_data(X, y)
 
     models = get_models()
-
     results_df = evaluate_models(X_train, y_train, models)
 
     results_df = results_df.sort_values(

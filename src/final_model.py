@@ -27,11 +27,20 @@ from preprocessing import load_data, prepare_features_and_target, split_data
 BASE_DIR = Path(__file__).resolve().parents[1]
 
 RESULTS_DIR = BASE_DIR / "results" / "final_model"
+RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+
 MODELS_DIR = BASE_DIR / "models"
+MODELS_DIR.mkdir(parents=True, exist_ok=True)
 
 MODEL_PATH = MODELS_DIR / "best_model.joblib"
 FEATURES_PATH = MODELS_DIR / "selected_features.joblib"
 THRESHOLD_PATH = MODELS_DIR / "decision_threshold.joblib"
+
+METRICS_PATH = RESULTS_DIR / "final_model_metrics.csv"
+HYPERPARAMETERS_PATH = RESULTS_DIR / "best_hyperparameters.csv"
+REPORT_PATH = RESULTS_DIR / "classification_report.txt"
+CONFUSION_MATRIX_PATH = RESULTS_DIR / "confusion_matrix.png"
+ROC_CURVE_PATH = RESULTS_DIR / "roc_curve.png"
 
 SELECTED_FEATURES = [
     "PPE",
@@ -90,9 +99,6 @@ def find_optimal_threshold(y_true, y_prob):
 
 
 def main():
-    RESULTS_DIR.mkdir(parents=True, exist_ok=True)
-    MODELS_DIR.mkdir(parents=True, exist_ok=True)
-
     df = load_data()
 
     X, y = prepare_features_and_target(df)
@@ -157,21 +163,10 @@ def main():
                 f"Prediction={pred}"
             )
 
-    metrics_df.to_csv(
-        RESULTS_DIR / "final_model_metrics.csv",
-        index=False
-    )
+    metrics_df.to_csv(METRICS_PATH, index=False)
+    hyperparameters_df.to_csv(HYPERPARAMETERS_PATH, index=False)
 
-    hyperparameters_df.to_csv(
-        RESULTS_DIR / "best_hyperparameters.csv",
-        index=False
-    )
-
-    with open(
-        RESULTS_DIR / "classification_report.txt",
-        "w",
-        encoding="utf-8"
-    ) as file:
+    with open(REPORT_PATH, "w", encoding="utf-8") as file:
         file.write("Final model: Random Forest\n")
         file.write("Hyperparameter tuning: GridSearchCV\n")
         file.write("Threshold selection method: ROC curve + Youden's index\n\n")
@@ -196,7 +191,7 @@ def main():
     )
     plt.title("Confusion Matrix - Random Forest")
     plt.tight_layout()
-    plt.savefig(RESULTS_DIR / "confusion_matrix.png")
+    plt.savefig(CONFUSION_MATRIX_PATH)
     plt.close()
 
     RocCurveDisplay.from_predictions(
@@ -205,7 +200,7 @@ def main():
     )
     plt.title("ROC Curve - Random Forest")
     plt.tight_layout()
-    plt.savefig(RESULTS_DIR / "roc_curve.png")
+    plt.savefig(ROC_CURVE_PATH)
     plt.close()
 
     joblib.dump(model, MODEL_PATH)

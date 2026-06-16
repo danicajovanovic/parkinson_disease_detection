@@ -12,7 +12,14 @@ from preprocessing import load_data, prepare_features_and_target, split_data
 
 
 BASE_DIR = Path(__file__).resolve().parents[1]
-RESULTS_DIR = BASE_DIR / "results"
+
+RESULTS_DIR = BASE_DIR / "results" / "feature_selection"
+RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+
+FEATURE_IMPORTANCE_CSV = RESULTS_DIR / "feature_importance.csv"
+FEATURE_IMPORTANCE_PNG = RESULTS_DIR / "feature_importance.png"
+FEATURE_SUBSET_CSV = RESULTS_DIR / "feature_subset_comparison.csv"
+FEATURE_SUBSET_PNG = RESULTS_DIR / "feature_subset_performance.png"
 
 
 def build_random_forest():
@@ -81,15 +88,33 @@ def plot_feature_importance(importance):
     plt.xlabel("Importance")
     plt.ylabel("Feature")
     plt.tight_layout()
-    plt.savefig(RESULTS_DIR / "feature_importance.png")
+    plt.savefig(FEATURE_IMPORTANCE_PNG)
     plt.close()
 
 
 def plot_feature_subset_results(results):
     plt.figure(figsize=(8, 5))
-    plt.plot(results["Number of features"], results["F1-score"], marker="o", label="F1-score")
-    plt.plot(results["Number of features"], results["Recall"], marker="o", label="Recall")
-    plt.plot(results["Number of features"], results["ROC-AUC"], marker="o", label="ROC-AUC")
+
+    plt.plot(
+        results["Number of features"],
+        results["F1-score"],
+        marker="o",
+        label="F1-score"
+    )
+
+    plt.plot(
+        results["Number of features"],
+        results["Recall"],
+        marker="o",
+        label="Recall"
+    )
+
+    plt.plot(
+        results["Number of features"],
+        results["ROC-AUC"],
+        marker="o",
+        label="ROC-AUC"
+    )
 
     plt.title("Model performance by number of selected features")
     plt.xlabel("Number of selected features")
@@ -97,7 +122,7 @@ def plot_feature_subset_results(results):
     plt.legend()
     plt.grid(True)
     plt.tight_layout()
-    plt.savefig(RESULTS_DIR / "feature_subset_performance.png")
+    plt.savefig(FEATURE_SUBSET_PNG)
     plt.close()
 
 
@@ -108,7 +133,7 @@ def main():
     X_train, X_test, y_train, y_test = split_data(X, y)
 
     importance = calculate_feature_importance(X_train, y_train, X.columns)
-    importance.to_csv(RESULTS_DIR / "feature_importance.csv", index=False)
+    importance.to_csv(FEATURE_IMPORTANCE_CSV, index=False)
 
     print("\nFeature importance:")
     print(importance)
@@ -123,10 +148,7 @@ def main():
         ranked_features
     )
 
-    subset_results.to_csv(
-        RESULTS_DIR / "feature_subset_comparison.csv",
-        index=False
-    )
+    subset_results.to_csv(FEATURE_SUBSET_CSV, index=False)
 
     print("\nFeature subset comparison:")
     print(subset_results)
