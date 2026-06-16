@@ -1,5 +1,6 @@
 Final model: Random Forest
-Decision threshold: 0.35
+Threshold selection method: ROC curve + Youden's index
+Optimal decision threshold: 0.5700
 
 Selected features:
 - PPE
@@ -15,9 +16,9 @@ Selected features:
 Classification report:
               precision    recall  f1-score   support
 
-           0       0.89      0.80      0.84        10
-           1       0.93      0.97      0.95        29
+           0       0.90      0.90      0.90        10
+           1       0.97      0.97      0.97        29
 
-    accuracy                           0.92        39
-   macro avg       0.91      0.88      0.90        39
-weighted avg       0.92      0.92      0.92        39
+    accuracy                           0.95        39
+   macro avg       0.93      0.93      0.93        39
+weighted avg       0.95      0.95      0.95        39
