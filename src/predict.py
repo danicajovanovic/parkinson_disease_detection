@@ -1,3 +1,4 @@
+import random
 from pathlib import Path
 
 import joblib
@@ -74,13 +75,25 @@ def main():
     model, selected_features, decision_threshold = load_prediction_artifacts()
 
     for label, status_value in [("HEALTHY EXAMPLE", 0), ("PARKINSON EXAMPLE", 1)]:
-        for i in range(len(y_test)):
-            if y_test.iloc[i] == status_value:
-                sample = X_test.iloc[i:i + 1]
-                _print_example(
-                    label, model, selected_features, decision_threshold, sample
-                )
+        candidates = [i for i in range(len(y_test)) if y_test.iloc[i] == status_value]
+        random.shuffle(candidates)
+
+        # Prefer an example the model actually gets right, so the demo isn't
+        # confusing on the rare cases where the model is wrong (it isn't
+        # 100% accurate - see results/final_model/classification_report.txt).
+        # The order is shuffled above so a different example shows each run.
+        chosen = candidates[0]
+        for i in candidates:
+            sample = X_test.iloc[i:i + 1]
+            prediction, _ = predict_from_features(
+                model, selected_features, decision_threshold, sample
+            )
+            if prediction == status_value:
+                chosen = i
                 break
+
+        sample = X_test.iloc[chosen:chosen + 1]
+        _print_example(label, model, selected_features, decision_threshold, sample)
 
 
 if __name__ == "__main__":
