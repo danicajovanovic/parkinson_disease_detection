@@ -63,11 +63,16 @@ FEATURE_INFO = {
         "help": "Nonlinear measure of fundamental frequency variation.",
         "value": 0.266482, "min": 0.0, "max": 0.5, "step": 0.0001, "format": "%.6f",
     },
-    "Shimmer:APQ5": {
-        "label": "Shimmer:APQ5",
-        "help": "Five-point amplitude perturbation quotient, a measure of "
-                "amplitude variation in the voice signal.",
-        "value": 0.03130, "min": 0.0, "max": 0.09, "step": 0.0001, "format": "%.6f",
+    "RPDE": {
+        "label": "RPDE (Recurrence Period Density Entropy)",
+        "help": "Nonlinear dynamical complexity measure of the voice signal.",
+        "value": 0.414783, "min": 0.2, "max": 0.7, "step": 0.0001, "format": "%.6f",
+    },
+    "MDVP:Jitter(Abs)": {
+        "label": "MDVP:Jitter(Abs)",
+        "help": "Absolute average difference between consecutive pitch periods, "
+                "measured in seconds.",
+        "value": 0.000070, "min": 0.0, "max": 0.0003, "step": 0.000001, "format": "%.6f",
     },
 }
 

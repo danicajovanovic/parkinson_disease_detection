@@ -24,9 +24,11 @@ from sklearn.metrics import (
     recall_score,
     f1_score,
     roc_auc_score,
+    average_precision_score,
     classification_report,
     ConfusionMatrixDisplay,
     RocCurveDisplay,
+    PrecisionRecallDisplay,
 )
 
 from preprocessing import load_data, prepare_features_and_target, split_data
@@ -42,6 +44,7 @@ METRICS_PATH = RESULTS_DIR / "evaluation_metrics.csv"
 REPORT_PATH = RESULTS_DIR / "classification_report.txt"
 CONFUSION_MATRIX_PATH = RESULTS_DIR / "confusion_matrix.png"
 ROC_CURVE_PATH = RESULTS_DIR / "roc_curve.png"
+PR_CURVE_PATH = RESULTS_DIR / "precision_recall_curve.png"
 
 
 def evaluate_model(model, selected_features, decision_threshold, X_test, y_test):
@@ -63,6 +66,7 @@ def evaluate_model(model, selected_features, decision_threshold, X_test, y_test)
         "Recall": recall_score(y_test, y_pred),
         "F1-score": f1_score(y_test, y_pred),
         "ROC-AUC": roc_auc_score(y_test, y_prob),
+        "Average Precision": average_precision_score(y_test, y_prob),
     }
 
     report = classification_report(y_test, y_pred)
@@ -86,11 +90,25 @@ def save_roc_curve(y_test, y_prob, output_path, model_name="Random Forest"):
     plt.close()
 
 
+def save_pr_curve(y_test, y_prob, output_path, model_name="Random Forest"):
+    """
+    Precision-Recall curve, informativnija od ROC krive kod neravnomernih
+    klasa (147 Parkinson vs 48 zdravih u ovom dataset-u).
+    """
+    PrecisionRecallDisplay.from_predictions(y_test, y_prob)
+    plt.title(f"Precision-Recall Curve - {model_name}")
+    plt.tight_layout()
+    plt.savefig(output_path)
+    plt.close()
+
+
 def main():
     df = load_data()
 
-    X, y = prepare_features_and_target(df)
-    X_train, X_test, y_train, y_test = split_data(X, y)
+    X, y, groups = prepare_features_and_target(df)
+    X_train, X_test, y_train, y_test, groups_train, groups_test = split_data(
+        X, y, groups
+    )
 
     model, selected_features, decision_threshold = load_prediction_artifacts()
 
@@ -122,6 +140,7 @@ def main():
 
     save_confusion_matrix(y_test, y_pred, CONFUSION_MATRIX_PATH)
     save_roc_curve(y_test, y_prob, ROC_CURVE_PATH)
+    save_pr_curve(y_test, y_prob, PR_CURVE_PATH)
 
     print(f"\nResults saved to: {RESULTS_DIR}")
 

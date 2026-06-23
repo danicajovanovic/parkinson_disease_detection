@@ -69,8 +69,10 @@ def main():
 
     df = load_data()
 
-    X, y = prepare_features_and_target(df)
-    X_train, X_test, y_train, y_test = split_data(X, y)
+    X, y, groups = prepare_features_and_target(df)
+    X_train, X_test, y_train, y_test, groups_train, groups_test = split_data(
+        X, y, groups
+    )
 
     model, selected_features, decision_threshold = load_prediction_artifacts()
 

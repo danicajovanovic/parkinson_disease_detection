@@ -4,30 +4,31 @@ Threshold selection method: ROC curve + Youden's index (cross-validated on the t
 
 Selected features:
 - PPE
+- MDVP:Flo(Hz)
 - spread1
 - MDVP:Fo(Hz)
-- NHR
-- Jitter:DDP
 - MDVP:Fhi(Hz)
-- MDVP:Flo(Hz)
+- NHR
+- RPDE
+- Jitter:DDP
+- MDVP:Jitter(Abs)
 - spread2
-- Shimmer:APQ5
 
 Best hyperparameters:
 model__max_depth: None
-model__min_samples_leaf: 1
-model__min_samples_split: 2
-model__n_estimators: 300
+model__min_samples_leaf: 2
+model__min_samples_split: 5
+model__n_estimators: 100
 
-Best CV F1-score: 0.9296
-Optimal decision threshold: 0.4467
+Best CV F1-score: 0.8710
+Optimal decision threshold: 0.7693
 
 Classification report:
               precision    recall  f1-score   support
 
-           0       0.89      0.80      0.84        10
-           1       0.93      0.97      0.95        29
+           0       1.00      0.75      0.86        12
+           1       0.91      1.00      0.95        31
 
-    accuracy                           0.92        39
-   macro avg       0.91      0.88      0.90        39
-weighted avg       0.92      0.92      0.92        39
+    accuracy                           0.93        43
+   macro avg       0.96      0.88      0.91        43
+weighted avg       0.94      0.93      0.93        43

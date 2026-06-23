@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import cross_validate
+from sklearn.model_selection import cross_validate, StratifiedGroupKFold
 
 from preprocessing import load_data, prepare_features_and_target, split_data
 from metrics import SCORING, scores_to_row
@@ -44,8 +44,9 @@ def calculate_feature_importance(X_train, y_train, X_columns):
     return importance
 
 
-def evaluate_feature_subsets(X_train, y_train, ranked_features):
+def evaluate_feature_subsets(X_train, y_train, groups_train, ranked_features):
     results = []
+    cv = StratifiedGroupKFold(n_splits=5)
 
     for number_of_features in range(1, len(ranked_features) + 1):
         selected_features = ranked_features[:number_of_features]
@@ -56,7 +57,8 @@ def evaluate_feature_subsets(X_train, y_train, ranked_features):
             model,
             X_train[selected_features],
             y_train,
-            cv=5,
+            cv=cv,
+            groups=groups_train,
             scoring=SCORING
         )
 
@@ -118,8 +120,10 @@ def plot_feature_subset_results(results):
 def main():
     df = load_data()
 
-    X, y = prepare_features_and_target(df)
-    X_train, X_test, y_train, y_test = split_data(X, y)
+    X, y, groups = prepare_features_and_target(df)
+    X_train, X_test, y_train, y_test, groups_train, groups_test = split_data(
+        X, y, groups
+    )
 
     importance = calculate_feature_importance(X_train, y_train, X.columns)
     importance.to_csv(FEATURE_IMPORTANCE_CSV, index=False)
@@ -134,6 +138,7 @@ def main():
     subset_results = evaluate_feature_subsets(
         X_train,
         y_train,
+        groups_train,
         ranked_features
     )
 

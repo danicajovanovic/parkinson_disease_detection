@@ -2,23 +2,24 @@ Evaluation of the saved model on the test set
 
 Selected features:
 - PPE
+- MDVP:Flo(Hz)
 - spread1
 - MDVP:Fo(Hz)
-- NHR
-- Jitter:DDP
 - MDVP:Fhi(Hz)
-- MDVP:Flo(Hz)
+- NHR
+- RPDE
+- Jitter:DDP
+- MDVP:Jitter(Abs)
 - spread2
-- Shimmer:APQ5
 
-Decision threshold: 0.4467
+Decision threshold: 0.7693
 
 Classification report:
               precision    recall  f1-score   support
 
-           0       0.89      0.80      0.84        10
-           1       0.93      0.97      0.95        29
+           0       1.00      0.75      0.86        12
+           1       0.91      1.00      0.95        31
 
-    accuracy                           0.92        39
-   macro avg       0.91      0.88      0.90        39
-weighted avg       0.92      0.92      0.92        39
+    accuracy                           0.93        43
+   macro avg       0.96      0.88      0.91        43
+weighted avg       0.94      0.93      0.93        43

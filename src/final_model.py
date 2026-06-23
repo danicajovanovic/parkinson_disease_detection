@@ -3,15 +3,25 @@ from pathlib import Path
 import joblib
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import GridSearchCV, cross_val_predict
+from sklearn.model_selection import (
+    GridSearchCV,
+    cross_val_predict,
+    StratifiedGroupKFold,
+)
 from sklearn.metrics import roc_curve
 
 from preprocessing import load_data, prepare_features_and_target, split_data
-from evaluate import evaluate_model, save_confusion_matrix, save_roc_curve
+from evaluate import (
+    evaluate_model,
+    save_confusion_matrix,
+    save_roc_curve,
+    save_pr_curve,
+)
 
 
 BASE_DIR = Path(__file__).resolve().parents[1]
@@ -31,17 +41,20 @@ HYPERPARAMETERS_PATH = RESULTS_DIR / "best_hyperparameters.csv"
 REPORT_PATH = RESULTS_DIR / "classification_report.txt"
 CONFUSION_MATRIX_PATH = RESULTS_DIR / "confusion_matrix.png"
 ROC_CURVE_PATH = RESULTS_DIR / "roc_curve.png"
+PR_CURVE_PATH = RESULTS_DIR / "precision_recall_curve.png"
+HYPERPARAMETER_HEATMAP_PATH = RESULTS_DIR / "hyperparameter_heatmap.png"
 
 SELECTED_FEATURES = [
     "PPE",
+    "MDVP:Flo(Hz)",
     "spread1",
     "MDVP:Fo(Hz)",
-    "NHR",
-    "Jitter:DDP",
     "MDVP:Fhi(Hz)",
-    "MDVP:Flo(Hz)",
+    "NHR",
+    "RPDE",
+    "Jitter:DDP",
+    "MDVP:Jitter(Abs)",
     "spread2",
-    "Shimmer:APQ5",
 ]
 
 
@@ -54,33 +67,87 @@ def build_pipeline():
     ])
 
 
-def tune_hyperparameters(X_train, y_train):
+def tune_hyperparameters(X_train, y_train, groups_train):
     pipeline = build_pipeline()
 
     param_grid = {
-        "model__n_estimators": [100, 200, 300],
+        "model__n_estimators": [100, 200, 300, 400, 500],
         "model__max_depth": [None, 3, 5, 10],
         "model__min_samples_split": [2, 5, 10],
         "model__min_samples_leaf": [1, 2, 4],
     }
 
+    # StratifiedGroupKFold - snimci iste osobe ostaju u istom fold-u, da
+    # pretraga hiperparametara ne favorizuje model koji "prepoznaje" osobu.
+    cv = StratifiedGroupKFold(n_splits=5)
+
     grid_search = GridSearchCV(
         estimator=pipeline,
         param_grid=param_grid,
-        cv=5,
+        cv=cv,
         # f1 balansira precision i recall - "recall" bi nagrađivao model koji
         # uvek predviđa Parkinson, što šteti precision-u zdrave klase.
         scoring="f1",
         n_jobs=-1
     )
 
-    grid_search.fit(X_train, y_train)
+    grid_search.fit(X_train, y_train, groups=groups_train)
 
     return (
         grid_search.best_estimator_,
         grid_search.best_params_,
-        grid_search.best_score_
+        grid_search.best_score_,
+        grid_search.cv_results_,
     )
+
+
+def plot_hyperparameter_heatmap(cv_results, best_params, output_path):
+    """
+    Heatmap F1-score (mean_test_score) za n_estimators x max_depth, sa
+    min_samples_split i min_samples_leaf fiksiranim na najbolje pronađene
+    vrednosti - pokazuje da li je izabrana kombinacija stvarni optimum ili
+    je na ivici ispitanog grida.
+    """
+    results = pd.DataFrame(cv_results)
+
+    fixed_split = best_params["model__min_samples_split"]
+    fixed_leaf = best_params["model__min_samples_leaf"]
+
+    subset = results[
+        (results["param_model__min_samples_split"] == fixed_split)
+        & (results["param_model__min_samples_leaf"] == fixed_leaf)
+    ].copy()
+
+    subset["param_model__max_depth"] = subset["param_model__max_depth"].apply(
+        lambda value: "None" if value is None else value
+    )
+
+    pivot = subset.pivot(
+        index="param_model__max_depth",
+        columns="param_model__n_estimators",
+        values="mean_test_score"
+    )
+
+    plt.figure(figsize=(8, 5))
+    plt.imshow(pivot.values, cmap="viridis", aspect="auto")
+    plt.colorbar(label="Mean CV F1-score")
+    plt.xticks(range(len(pivot.columns)), pivot.columns)
+    plt.yticks(range(len(pivot.index)), pivot.index)
+    plt.xlabel("n_estimators")
+    plt.ylabel("max_depth")
+    plt.title(
+        f"GridSearchCV F1-score "
+        f"(min_samples_split={fixed_split}, min_samples_leaf={fixed_leaf})"
+    )
+
+    for row in range(len(pivot.index)):
+        for col in range(len(pivot.columns)):
+            value = pivot.values[row, col]
+            plt.text(col, row, f"{value:.3f}", ha="center", va="center", color="white")
+
+    plt.tight_layout()
+    plt.savefig(output_path)
+    plt.close()
 
 
 def find_optimal_threshold(y_true, y_prob):
@@ -95,25 +162,30 @@ def find_optimal_threshold(y_true, y_prob):
 def main():
     df = load_data()
 
-    X, y = prepare_features_and_target(df)
-    X_train, X_test, y_train, y_test = split_data(X, y)
+    X, y, groups = prepare_features_and_target(df)
+    X_train, X_test, y_train, y_test, groups_train, groups_test = split_data(
+        X, y, groups
+    )
 
     X_train_selected = X_train[SELECTED_FEATURES]
 
-    model, best_params, best_cv_f1 = tune_hyperparameters(
+    model, best_params, best_cv_f1, cv_results = tune_hyperparameters(
         X_train_selected,
-        y_train
+        y_train,
+        groups_train
     )
 
     # The decision threshold must not be chosen using the test set, otherwise
     # the test labels leak into the model selection process and the final
     # metrics become optimistically biased. Instead, the threshold is chosen
     # using out-of-fold predicted probabilities on the training set only.
+    # Grouped by subject, same as the hyperparameter search above.
     cv_probabilities = cross_val_predict(
         model,
         X_train_selected,
         y_train,
-        cv=5,
+        groups=groups_train,
+        cv=StratifiedGroupKFold(n_splits=5),
         method="predict_proba"
     )[:, 1]
 
@@ -185,6 +257,8 @@ def main():
 
     save_confusion_matrix(y_test, y_pred, CONFUSION_MATRIX_PATH)
     save_roc_curve(y_test, y_prob, ROC_CURVE_PATH)
+    save_pr_curve(y_test, y_prob, PR_CURVE_PATH)
+    plot_hyperparameter_heatmap(cv_results, best_params, HYPERPARAMETER_HEATMAP_PATH)
 
     joblib.dump(model, MODEL_PATH)
     joblib.dump(SELECTED_FEATURES, FEATURES_PATH)
