@@ -1,207 +1,232 @@
 # Detekcija Parkinsonove bolesti
 
-Mašinsko učenje za procenu rizika od Parkinsonove bolesti na osnovu glasovnih
-snimaka, rađeno nad [UCI Parkinson's dataset-om](https://archive.ics.uci.edu/dataset/174/parkinsons).
-Projekat je edukativan — model nije medicinsko sredstvo i njegov izlaz ne
-treba tumačiti kao dijagnozu.
+![Python](https://img.shields.io/badge/Python-3.14-blue)
+![scikit-learn](https://img.shields.io/badge/scikit--learn-ML-orange)
+![Streamlit](https://img.shields.io/badge/Streamlit-App-red)
+![Status](https://img.shields.io/badge/Status-Completed-success)
 
-## Podaci
+Projekat iz mašinskog učenja za binarnu klasifikaciju Parkinsonove bolesti na osnovu akustičkih karakteristika glasa korišćenjem UCI Parkinson's Disease dataseta.
 
-Dataset sadrži 195 snimaka glasa od 32 osobe (vidljivo iz `name` kolone,
-npr. `phon_R01_S01_1` → osoba `S01`, sa ~6 snimaka po osobi), od kojih 24
-imaju Parkinsonovu bolest, a 8 je zdravo. Svaki red je jedan snimak opisan
-sa 22 akustičke karakteristike (jitter, shimmer, odnos šuma i tona,
-nelinearne mere frekvencije...) i ciljnom promenljivom `status`
-(1 = Parkinson, 0 = zdrava osoba). Pun opis kolona je u
-[data/parkinsons.names](data/parkinsons.names).
+> ⚠️ Edukativan projekat — model nije medicinsko sredstvo i njegov izlaz ne treba tumačiti kao dijagnozu.
 
-Bitno je napomenuti da klase nisu ravnomerno raspoređene — 147 uzoraka je
-Parkinson, a samo 48 zdravo — i to je direktno uticalo na to kako je model
-treniran (videti odeljak [Metodologija](#metodologija)).
+---
 
 ## Struktura projekta
 
+```text
+├── src/
+│   ├── data_analysis.py        # eksplorativna analiza podataka
+│   ├── anomaly_detection.py    # detekcija anomalija
+│   ├── train.py                # poređenje baznih modela
+│   ├── feature_selection.py    # izbor karakteristika
+│   ├── final_model.py          # treniranje finalnog modela
+│   ├── evaluate.py             # evaluacija modela
+│   ├── learning_curve.py       # analiza train/CV performansi
+│   ├── split_robustness.py     # stabilnost različitih split-ova
+│   └── predict.py              # primer predikcije
+
+├── app/ui.py                   # Streamlit aplikacija
+├── data/                       # dataset
+├── models/                     # sačuvani model i artefakti
+├── results/                    # metrike, grafici i izveštaji
+└── docs/documentation.md       # kompletna dokumentacija
 ```
-app/      Streamlit interfejs
-data/     Sirovi podaci
-docs/     Specifikacija projekta
-models/   Sačuvan model i prateći artefakti (izabrane karakteristike, threshold)
-results/  Sve što pipeline generiše - metrike, grafici, izveštaji
-src/      Skripte: analiza, treniranje, evaluacija, predikcija
+
+---
+
+## Dataset
+
+Korišćen je **UCI Parkinson's Disease dataset** koji sadrži:
+
+* 195 glasovnih snimaka
+* 32 osobe
+* 24 osobe sa Parkinsonovom bolešću
+* 8 zdravih osoba
+* 22 numeričke karakteristike glasa
+* ciljnu promenljivu `status`
+
+Svaka osoba poseduje više snimaka (u proseku oko 6), zbog čega je podela podataka vršena na nivou osobe.
+
+Dataset je nebalansiran:
+
+* 147 Parkinson snimaka
+* 48 zdravih snimaka
+
+Pun opis atributa nalazi se u:
+
+```text
+data/parkinsons.names
 ```
+
+---
 
 ## Pipeline
 
-Projekat je podeljen u nekoliko skripti koje se pokreću jedna za drugom, iz
-korena projekta:
+| Korak | Skripta                | Opis                           |
+| ----- | ---------------------- | ------------------------------ |
+| 1     | `data_analysis.py`     | Eksplorativna analiza podataka |
+| 2     | `anomaly_detection.py` | Detekcija anomalija            |
+| 3     | `train.py`             | Poređenje modela               |
+| 4     | `feature_selection.py` | Izbor najvažnijih atributa     |
+| 5     | `final_model.py`       | Tuning i treniranje            |
+| 6     | `evaluate.py`          | Evaluacija                     |
+| 7     | `learning_curve.py`    | Analiza generalizacije         |
+| 8     | `split_robustness.py`  | Stabilnost rezultata           |
+| 9     | `predict.py`           | Predikcija                     |
 
-```bash
-python src/data_analysis.py      # eksplorativna analiza (statistike, korelacije, PCA, grafici u results/graphics)
-python src/anomaly_detection.py  # KNN/LOF/Isolation Forest provera anomalija (results/anomaly_detection)
-python src/train.py              # poređenje baznih modela, uključujući baseline (5-fold CV)
-python src/feature_selection.py  # rangiranje i izbor karakteristika
-python src/final_model.py        # tuning hiperparametara i treniranje finalnog modela
-python src/evaluate.py           # evaluacija sačuvanog modela na test skupu
-python src/learning_curve.py     # train vs CV F1-score u zavisnosti od veličine trening skupa
-python src/split_robustness.py   # koliko rezultat zavisi od izbora train/test split-a
-python src/predict.py            # par primera predikcije u konzoli
-```
-
-Svaka skripta upisuje svoje rezultate u odgovarajući poddirektorijum unutar
-`results/`. `main.py` je samo prečica: ako model već postoji u `models/`,
-pokreće primer predikcije; ako ne postoji, kaže ti koje skripte treba prvo
-pokrenuti.
+---
 
 ## Metodologija
 
-Finalni model je Random Forest, podešen pomoću `GridSearchCV` (5-fold CV)
-nad 10 najznačajnijih karakteristika: `PPE`, `MDVP:Flo(Hz)`, `spread1`,
-`MDVP:Fo(Hz)`, `MDVP:Fhi(Hz)`, `NHR`, `RPDE`, `Jitter:DDP`,
-`MDVP:Jitter(Abs)`, `spread2`.
+Evaluirani modeli:
 
-Tri detalja su ovde namerno drugačija od "naivnog" pristupa.
+* Logistic Regression
+* KNN
+* SVM
+* Decision Tree
+* Random Forest
+* XGBoost
+* Dummy baseline classifier
 
-Dataset sadrži 195 snimaka, ali samo od **32 osobe** — svaka osoba ima
-nekoliko (oko 6) snimaka, sa istim statusom za sve svoje snimke. Da bi se
-izbeglo curenje podataka na nivou osobe (model bi inače delom učio da
-prepozna konkretnu osobu po glasu, umesto generalizovanog biomarkera
-bolesti), train/test podela i sva cross-validacija (poređenje modela, izbor
-karakteristika, tuning hiperparametara) se rade na nivou **osobe**, ne
-snimka — koristeći stratifikovanu podelu po subjektima i
-`StratifiedGroupKFold`. Posle ove ispravke su izveštene metrike primetno
-niže nego sa naivnim (curećim) split-om po snimcima, ali realnije
-predstavljaju kako bi se model ponašao na potpuno novoj osobi.
+Kao finalni model izabran je:
 
-Pošto u dataset-u ima skoro tri puta više Parkinson nego zdravih uzoraka,
-model koristi `class_weight="balanced"`, a pretraga hiperparametara
-optimizuje F1-score umesto čistog recall-a. Bez ovoga model ima tendenciju
-da skoro sve proglasi Parkinsonom — recall onda izgleda odlično, ali na
-štetu zdrave klase, koja ispadne sistematski lošije prepoznata.
+```text
+Random Forest
+```
 
-Decision threshold se ne uzima podrazumevano kao 0.5, već se bira preko ROC
-krive i Youden indeksa — ali isključivo na osnovu out-of-fold predikcija na
-trening skupu (`cross_val_predict`, grupisano po osobi), nikad na test
-skupu. Razlog je jednostavan: kad bi se threshold birao gledajući test
-labele, te labele bi efektivno "iscurele" u proces selekcije modela, a
-izveštene metrike bi ispale veštački bolje nego što model zaista jeste.
+Hiperparametri su optimizovani pomoću:
 
-Train/test podela je 80/20 **po osobi**, stratifikovana po klasama (25
-osoba u treningu, 7 u testu). Poseban validation skup nije izdvojen jer
-dataset ima samo 32 osobe — i izbor modela i izbor threshold-a se oslanjaju
-na 5-fold group cross-validation nad trening skupom.
+```text
+GridSearchCV
+```
+
+Originalnih 22 atributa redukovano je na 10 najznačajnijih karakteristika.
+
+---
+
+## Sprečavanje curenja podataka
+
+Pošto dataset sadrži više snimaka iste osobe, train/test podela i cross-validacija vršene su na nivou osobe korišćenjem:
+
+* StratifiedGroupKFold
+* grupisane train/test podele
+
+Na ovaj način nijedan snimak iste osobe ne može da se pojavi istovremeno u trening i test skupu.
+
+---
+
+## Neravnomerne klase
+
+Zbog odnosa 147:48 korišćeno je:
+
+```python
+class_weight="balanced"
+```
+
+Optimizacija modela vršena je korišćenjem F1-score metrike.
+
+---
+
+## Izbor decision threshold-a
+
+Threshold nije fiksiran na 0.5.
+
+Optimalna vrednost određena je pomoću:
+
+* ROC krive
+* Youden indeksa
+* out-of-fold predikcija
+
+Threshold je određen isključivo na trening skupu kako bi se sprečilo curenje informacija iz test skupa.
+
+---
 
 ## Rezultati
 
-Na test skupu, finalni model postiže:
+| Metrika            | Vrednost |
+| ------------------ | -------- |
+| Accuracy           | 93.0%    |
+| Precision          | 91.2%    |
+| Recall             | 100.0%   |
+| F1-score           | 95.4%    |
+| ROC-AUC            | 97.0%    |
+| Decision threshold | 0.769    |
 
-| Metrika | Vrednost |
-|---|---|
-| Accuracy | 93.0% |
-| Precision | 91.2% |
-| Recall | 100% |
-| F1-score | 95.4% |
-| ROC-AUC | 97.0% |
-| Decision threshold | 0.769 |
+Pošto test skup sadrži samo 7 osoba, dodatne analize stabilnosti modela sprovedene su korišćenjem:
 
-Test skup ima samo 7 osoba (43 snimka), pa su ove vrednosti procena sa
-relativno visokom varijansom — pri ovako malom broju subjekata, jedna
-pogrešno klasifikovana osoba menja metrike za nekoliko procentnih poena.
-Pouzdaniji uvid u stabilnost modela daje 5-fold group cross-validation na
-trening skupu (vidi `Best CV F1-score` u
-[results/final_model/classification_report.txt](results/final_model/classification_report.txt)
-i raspon po fold-ovima u
-[results/model_comparison/cv_scores_boxplot.png](results/model_comparison/cv_scores_boxplot.png)).
+* 5-fold group cross-validation
+* analize različitih train/test split-ova
 
-Detaljniji izveštaj je u
-[results/final_model/classification_report.txt](results/final_model/classification_report.txt),
-poređenje baznih modela u
-[results/model_comparison/model_comparison.csv](results/model_comparison/model_comparison.csv),
-a kako broj izabranih karakteristika utiče na performanse u
-[results/feature_selection/feature_subset_comparison.csv](results/feature_selection/feature_subset_comparison.csv).
+---
 
-Pošto test skup ima samo 7 osoba, [src/split_robustness.py](src/split_robustness.py)
-dodatno proverava koliko su ove metrike osetljive na konkretan izbor
-train/test split-a, ponavljajući split+trening+evaluaciju za 7 različitih
-random seed-ova (videti [results/final_model/split_robustness.csv](results/final_model/split_robustness.csv)).
+## Dodatne analize
 
-[src/learning_curve.py](src/learning_curve.py) upoređuje train vs CV
-F1-score u zavisnosti od veličine trening skupa, sačuvano kao **tabela**
-([results/final_model/learning_curve.csv](results/final_model/learning_curve.csv))
-umesto grafika: sa samo 32 osobe, svaka tačka je CV procena na grupama od
-~5-6 osoba po fold-u (CV F1 std. devijacija po veličini je 0.05-0.07, što
-je istog reda veličine kao i razlike između susednih tačaka), pa bi glatka
-linija na grafiku sugerisala čistiji, pouzdaniji trend nego što ovaj
-dataset stvarno može da pokaže.
+Implementirane su i dodatne analize:
 
-Na punom trening skupu (158 uzoraka): train F1 ≈ 0.99, CV F1 ≈ 0.84 —
-razmak od ~0.15. Bitno: taj razmak **nije specifičan za najveću veličinu**
-- kreće se 0.10-0.15 kroz ceo opseg veličina (vidi CSV), uključujući i
-najmanji trening podskup (31 uzoraka, gde je train F1 već 1.0). To je znak
-da je razmak strukturna karakteristika Random Forest-a na ovom dataset-u
-(videti dole), ne nešto što bi se popravilo samo postepenim dodavanjem
-podataka iz **istog**, već postojećeg skupa od 32 osobe.
+* korelaciona analiza
+* PCA vizualizacija
+* analiza značaja atributa
+* learning curves
+* Precision-Recall analiza
+* analiza stabilnosti split-ova
+* detekcija anomalija
 
-**Da li se taj razmak može smanjiti?** Probano je sa jačom regularizacijom
-(manji `max_depth`, veći `min_samples_leaf` u `GridSearchCV` grid-u, mereno
-na `X_train` preko `GridSearchCV.best_score_` - drugačiji postupak merenja
-od `learning_curve.py` iznad, pa je polazni razmak ovde 0.125, ne 0.15, ali
-zaključak je isti): i sa `max_depth=3, min_samples_leaf=10` razmak ostaje
-praktično isti (0.125 → 0.108), dok CV F1 pada sa 0.871 na 0.818. Razlog:
-kod Random Forest-a (bagging) razmak delom dolazi iz same prirode bagginga
-(svako stablo skoro savršeno klasifikuje sopstveni bootstrap uzorak), ne
-samo iz dubine stabla, pa ga je teško ukloniti bez žrtvovanja
-generalizacije. Pošto `GridSearchCV` već bira kombinaciju koja maksimizuje
-CV F1 (ispravan kriterijum), trenutni hiperparametri se ne menjaju samo da
-bi razmak izgledao manji na grafiku.
+Svi rezultati se nalaze u direktorijumu:
 
-Baseline (model koji uvek predviđa većinsku klasu) ima F1 = 0.86 i
-ROC-AUC = 0.50 — visok F1 baseline-a je posledica neravnomernih klasa
-(accuracy paradox), zato je ROC-AUC ovde informativniji pokazatelj da
-baseline ne razlikuje klase, dok svaki ozbiljan model treba da ga pobedi
-po ROC-AUC. Svi bazni modeli (uključujući novododati Gradient Boosting /
-XGBoost) su u
-[results/model_comparison/model_comparison.csv](results/model_comparison/model_comparison.csv).
+```text
+results/
+```
 
-[src/anomaly_detection.py](src/anomaly_detection.py) primenjuje tri
-nenadgledane metode (KNN distanca, Local Outlier Factor, Isolation Forest)
-da provere postoje li snimci koji značajno odskaču od ostatka skupa. Sve
-tri metode se slažu oko 4 snimka (osobe `S24` i `S35`,
-[results/anomaly_detection/anomaly_overlap.txt](results/anomaly_detection/anomaly_overlap.txt)) -
-nisu uklonjeni, jer kod ovako malog dataset-a izolovanost u prostoru
-atributa pre liči na prirodnu varijaciju izraženosti bolesti nego na
-grešku u merenju. Bitan detalj: anomalna su samo 4 od ukupno 13 snimaka
-ove dve osobe (S24 ima 6 snimaka, S35 ima 7), ne svi njihovi snimci - da
-je cela osoba "čudna", to bi ukazivalo na grešku u opremi/protokolu za tu
-osobu, ali pošto su samo pojedini njeni snimci izolovani, to više liči na
-varijaciju izraženosti simptoma iz snimka u snimak.
-
-Ova odluka je i empirijski proverena: treniranje istog modela (isti split,
-isti grid) bez ta 4 snimka **pogoršava** i CV F1 (0.871 → 0.848) i test
-ROC-AUC (0.970 → 0.938), bez ikakve dobiti na ostalim test metrikama (koje
-ostaju iste, pošto su anomalni snimci bili u trening, ne u test skupu).
-Uklanjanje anomalija ovde ne čisti šum - briše deo signala koji model
-treba da nauči.
-
-Potpuna dokumentacija projekta (opis problema, metodologija, rezultati i
-diskusija po fazama specifikacije) je u
-[docs/documentation.md](docs/documentation.md).
+---
 
 ## Web aplikacija
+
+Pokretanje aplikacije:
 
 ```bash
 streamlit run app/ui.py
 ```
 
-Forma za unos glasovnih biomarkera, sa rezultatom predikcije i procenjenom
-verovatnoćom. Koristi isti `predict.py` modul i iste sačuvane artefakte kao
-i ostatak pipeline-a, samo umotane u Streamlit interfejs.
+Aplikacija koristi isti model, izabrane karakteristike i threshold kao i ostatak sistema.
 
-## Pokretanje
+---
 
-Zavisnosti se upravljaju preko [uv](https://docs.astral.sh/uv/):
+## Pokretanje projekta
+
+Instalacija zavisnosti:
 
 ```bash
 uv sync
 ```
 
-Potreban je Python 3.14+ (videti `pyproject.toml`).
+Pokretanje kompletnog pipeline-a:
+
+```bash
+python src/data_analysis.py
+python src/anomaly_detection.py
+python src/train.py
+python src/feature_selection.py
+python src/final_model.py
+python src/evaluate.py
+```
+
+---
+
+## Tehnologije
+
+* Python
+* scikit-learn
+* pandas
+* numpy
+* matplotlib
+* seaborn
+* Streamlit
+* XGBoost
+
+---
+
+## Autor
+
+**Danica Jovanović**
+
+Fakultet tehničkih nauka, Novi Sad
