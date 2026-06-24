@@ -112,7 +112,7 @@ def plot_cv_score_boxplots(raw_fold_scores, output_path):
     model_names = list(raw_fold_scores.keys())
     fold_f1_scores = [raw_fold_scores[name]["test_f1"] for name in model_names]
 
-    plt.figure(figsize=(9, 6))
+    plt.figure(figsize=(11, 7))
     plt.boxplot(fold_f1_scores, tick_labels=model_names)
     plt.scatter(
         np.repeat(np.arange(1, len(model_names) + 1), 5),
@@ -122,6 +122,7 @@ def plot_cv_score_boxplots(raw_fold_scores, output_path):
         s=15,
         zorder=3,
     )
+    plt.xticks(rotation=20, ha="right")
     plt.ylabel("F1-score (po fold-u)")
     plt.title("Raspodela F1-score-a kroz 5 CV fold-ova")
     plt.grid(True, axis="y", alpha=0.3)

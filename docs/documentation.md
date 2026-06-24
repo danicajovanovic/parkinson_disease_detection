@@ -58,8 +58,9 @@ rezultati u [results/graphics/](../results/graphics/).
 - **Atributi najjače korelisani sa ciljnom promenljivom**: `spread1`,
   `PPE`, `spread2`, `MDVP:Fo(Hz)`, `MDVP:Flo(Hz)`, `MDVP:Shimmer`,
   `MDVP:APQ`, `HNR`, `Shimmer:APQ5` (apsolutna Pearson korelacija sa
-  `status`). Za njih su generisani `boxplot_*.png` (raspodela po klasi) i
-  `histogram_*.png` (raspodela vrednosti) grafici.
+  `status`). Za njih su generisani `boxplots_top_features.png` (raspodela
+  po klasi, sva 9 atributa na jednoj slici, grid 3×3) i
+  `histograms_top_features.png` (raspodela vrednosti, isti format).
 - **Anomalije/ekstremne vrednosti**: boxplot-ovi pokazuju prirodno
   rasipanje karakteristično za biomedicinske signale (par outlier-a po
   atributu), bez vrednosti koje ukazuju na grešku u merenju/unosu (npr.
@@ -209,14 +210,28 @@ pouzdaniji uvid u kvalitet modela 5-fold group CV rezultat iz tačke 4/5
 (Best CV F1-score = 0.871).
 
 **Bias-variance / over-underfitting.** [src/learning_curve.py](../src/learning_curve.py)
-crta train i CV F1-score finalnog modela u zavisnosti od veličine trening
-skupa (`results/final_model/learning_curve.png`). Train F1 brzo dostiže
-~0.99, dok CV F1 ostaje oko 0.84–0.88 kroz čitav opseg veličina —
-razmak (~0.15 na punom trening skupu) je znak **blagog overfitting-a**,
-očekivan kod Random Forest-a na ovoliko malom skupu, ali ne i kritičan:
-CV skor se ne smanjuje sa dodavanjem podataka (znak da model ne kolabira),
-a razmak je u skladu sa onim što je već uočeno u tački 4 — razlikom između
-train rezultata i CV/test rezultata.
+upoređuje train i CV F1-score finalnog modela u zavisnosti od veličine
+trening skupa, sačuvano kao **tabela**, ne grafik
+(`results/final_model/learning_curve.csv`) - sa samo 32 osobe, svaka tačka
+je CV procena na grupama od ~5-6 osoba po fold-u (CV F1 std. devijacija po
+veličini je 0.05-0.07, istog reda veličine kao razlike između susednih
+tačaka), pa bi glatka linija na grafiku sugerisala čistiji trend nego što
+ovaj dataset stvarno može pokazati.
+
+Train F1 brzo dostiže ~0.99 (već sa 31 uzoraka), dok se CV F1 kreće
+0.84–0.88 kroz čitav opseg veličina, sa blagim padom na najveće dve
+veličine (0.846, 0.844 na 139/158 uzoraka) — razmak (~0.10-0.15 kroz ceo
+opseg, ~0.15 na punom trening skupu) je znak **blagog overfitting-a**,
+očekivan kod Random Forest-a (bagging) na ovoliko malom skupu. Bitno:
+razmak je prisutan **kroz ceo opseg veličina**, ne samo na najvećoj — to
+je znak da je strukturna karakteristika modela na ovom dataset-u, ne
+nedostatak podataka koji bi nestao samo postepenim dodavanjem uzoraka iz
+**istog**, već postojećeg skupa od 32 osobe. Probano je i sa jačom
+regularizacijom (manji `max_depth`, veći `min_samples_leaf`): razmak se
+ne smanjuje značajno (0.125 → 0.108), dok CV F1 pada (0.871 → 0.818) - kod
+bagging metoda kao Random Forest, razmak delom dolazi iz same prirode
+bagginga (svako stablo skoro savršeno klasifikuje sopstveni bootstrap
+uzorak), pa ga je teško ukloniti bez žrtvovanja generalizacije.
 
 ## 7. Deployment modela
 

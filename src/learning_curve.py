@@ -2,16 +2,23 @@
 Learning curve za finalni model - train vs cross-validation F1-score u
 zavisnosti od veličine trening skupa.
 
-Svrha: vizuelno pokazati da li model underfituje (i train i CV skor niski),
-overfituje (train skor visok, CV skor nizak i razmak između njih veliki) ili
-je dobro balansiran (oba skora se približavaju sa više podataka).
+Svrha: pokazati da li model underfituje (i train i CV skor niski), overfituje
+(train skor visok, CV skor nizak i razmak između njih veliki) ili je dobro
+balansiran (oba skora se približavaju sa više podataka).
+
+Rezultat je tabela (CSV), ne grafik: sa samo 32 osobe, svaka tačka je CV
+procena na grupama od ~5-6 osoba po fold-u, pa je linija na grafiku
+šumovita (par konkretnih osoba pomeri CV F1 gore-dole nekoliko procentnih
+poena) - tabela sa std. devijacijom po veličini je iskreniji prikaz te
+nesigurnosti nego glatka linija koja sugeriše čistiji trend nego što ga
+ovaj dataset stvarno može da pokaže.
 """
 
 from pathlib import Path
 
 import joblib
 import numpy as np
-import matplotlib.pyplot as plt
+import pandas as pd
 
 from sklearn.model_selection import learning_curve, StratifiedGroupKFold
 
@@ -25,7 +32,7 @@ FEATURES_PATH = BASE_DIR / "models" / "selected_features.joblib"
 
 RESULTS_DIR = BASE_DIR / "results" / "final_model"
 RESULTS_DIR.mkdir(parents=True, exist_ok=True)
-OUTPUT_PATH = RESULTS_DIR / "learning_curve.png"
+OUTPUT_PATH = RESULTS_DIR / "learning_curve.csv"
 
 TRAIN_SIZES = np.linspace(0.2, 1.0, 8)
 
@@ -54,32 +61,23 @@ def main():
 
     train_mean, train_std = train_scores.mean(axis=1), train_scores.std(axis=1)
     test_mean, test_std = test_scores.mean(axis=1), test_scores.std(axis=1)
+    gap = train_mean - test_mean
 
-    print("Veličina trening podskupa | Train F1 | CV F1")
-    for size, tr, te in zip(train_sizes_abs, train_mean, test_mean):
-        print(f"{size:>24} | {tr:.4f}   | {te:.4f}")
+    table = pd.DataFrame({
+        "Veličina trening skupa": train_sizes_abs,
+        "Train F1 (prosek)": train_mean,
+        "Train F1 (std)": train_std,
+        "CV F1 (prosek)": test_mean,
+        "CV F1 (std)": test_std,
+        "Razmak (Train - CV)": gap,
+    })
 
-    plt.figure(figsize=(8, 5))
-    plt.plot(train_sizes_abs, train_mean, marker="o", label="Train F1-score")
-    plt.fill_between(
-        train_sizes_abs, train_mean - train_std, train_mean + train_std, alpha=0.15
-    )
-    plt.plot(train_sizes_abs, test_mean, marker="o", label="CV F1-score")
-    plt.fill_between(
-        train_sizes_abs, test_mean - test_std, test_mean + test_std, alpha=0.15
-    )
-    plt.xlabel("Broj snimaka u trening podskupu")
-    plt.ylabel("F1-score")
-    plt.title("Learning curve - finalni model (Random Forest)")
-    plt.legend(loc="lower right")
-    plt.grid(True, alpha=0.3)
-    plt.tight_layout()
-    plt.savefig(OUTPUT_PATH)
-    plt.close()
+    print(table.to_string(index=False))
 
-    gap = train_mean[-1] - test_mean[-1]
-    print(f"\nRazmak (train - CV) F1 na punom trening skupu: {gap:.4f}")
-    print(f"Grafik sačuvan u: {OUTPUT_PATH}")
+    table.to_csv(OUTPUT_PATH, index=False)
+
+    print(f"\nRazmak (train - CV) F1 na punom trening skupu: {gap[-1]:.4f}")
+    print(f"Tabela sačuvana u: {OUTPUT_PATH}")
 
 
 if __name__ == "__main__":

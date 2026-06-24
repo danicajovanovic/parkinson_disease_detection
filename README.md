@@ -124,13 +124,35 @@ dodatno proverava koliko su ove metrike osetljive na konkretan izbor
 train/test split-a, ponavljajući split+trening+evaluaciju za 7 različitih
 random seed-ova (videti [results/final_model/split_robustness.csv](results/final_model/split_robustness.csv)).
 
-[src/learning_curve.py](src/learning_curve.py) prikazuje train vs CV
-F1-score u zavisnosti od veličine trening skupa
-([results/final_model/learning_curve.png](results/final_model/learning_curve.png)):
-na punom trening skupu train F1 ≈ 0.99, CV F1 ≈ 0.84 — razmak od ~0.15
-ukazuje na blagi overfitting, što je realno za Random Forest na skupu od
-ovolike veličine, ali nije alarmantno (CV skor ostaje stabilan, ne pada sa
-više podataka).
+[src/learning_curve.py](src/learning_curve.py) upoređuje train vs CV
+F1-score u zavisnosti od veličine trening skupa, sačuvano kao **tabela**
+([results/final_model/learning_curve.csv](results/final_model/learning_curve.csv))
+umesto grafika: sa samo 32 osobe, svaka tačka je CV procena na grupama od
+~5-6 osoba po fold-u (CV F1 std. devijacija po veličini je 0.05-0.07, što
+je istog reda veličine kao i razlike između susednih tačaka), pa bi glatka
+linija na grafiku sugerisala čistiji, pouzdaniji trend nego što ovaj
+dataset stvarno može da pokaže.
+
+Na punom trening skupu (158 uzoraka): train F1 ≈ 0.99, CV F1 ≈ 0.84 —
+razmak od ~0.15. Bitno: taj razmak **nije specifičan za najveću veličinu**
+- kreće se 0.10-0.15 kroz ceo opseg veličina (vidi CSV), uključujući i
+najmanji trening podskup (31 uzoraka, gde je train F1 već 1.0). To je znak
+da je razmak strukturna karakteristika Random Forest-a na ovom dataset-u
+(videti dole), ne nešto što bi se popravilo samo postepenim dodavanjem
+podataka iz **istog**, već postojećeg skupa od 32 osobe.
+
+**Da li se taj razmak može smanjiti?** Probano je sa jačom regularizacijom
+(manji `max_depth`, veći `min_samples_leaf` u `GridSearchCV` grid-u, mereno
+na `X_train` preko `GridSearchCV.best_score_` - drugačiji postupak merenja
+od `learning_curve.py` iznad, pa je polazni razmak ovde 0.125, ne 0.15, ali
+zaključak je isti): i sa `max_depth=3, min_samples_leaf=10` razmak ostaje
+praktično isti (0.125 → 0.108), dok CV F1 pada sa 0.871 na 0.818. Razlog:
+kod Random Forest-a (bagging) razmak delom dolazi iz same prirode bagginga
+(svako stablo skoro savršeno klasifikuje sopstveni bootstrap uzorak), ne
+samo iz dubine stabla, pa ga je teško ukloniti bez žrtvovanja
+generalizacije. Pošto `GridSearchCV` već bira kombinaciju koja maksimizuje
+CV F1 (ispravan kriterijum), trenutni hiperparametri se ne menjaju samo da
+bi razmak izgledao manji na grafiku.
 
 Baseline (model koji uvek predviđa većinsku klasu) ima F1 = 0.86 i
 ROC-AUC = 0.50 — visok F1 baseline-a je posledica neravnomernih klasa
@@ -147,7 +169,18 @@ tri metode se slažu oko 4 snimka (osobe `S24` i `S35`,
 [results/anomaly_detection/anomaly_overlap.txt](results/anomaly_detection/anomaly_overlap.txt)) -
 nisu uklonjeni, jer kod ovako malog dataset-a izolovanost u prostoru
 atributa pre liči na prirodnu varijaciju izraženosti bolesti nego na
-grešku u merenju.
+grešku u merenju. Bitan detalj: anomalna su samo 4 od ukupno 13 snimaka
+ove dve osobe (S24 ima 6 snimaka, S35 ima 7), ne svi njihovi snimci - da
+je cela osoba "čudna", to bi ukazivalo na grešku u opremi/protokolu za tu
+osobu, ali pošto su samo pojedini njeni snimci izolovani, to više liči na
+varijaciju izraženosti simptoma iz snimka u snimak.
+
+Ova odluka je i empirijski proverena: treniranje istog modela (isti split,
+isti grid) bez ta 4 snimka **pogoršava** i CV F1 (0.871 → 0.848) i test
+ROC-AUC (0.970 → 0.938), bez ikakve dobiti na ostalim test metrikama (koje
+ostaju iste, pošto su anomalni snimci bili u trening, ne u test skupu).
+Uklanjanje anomalija ovde ne čisti šum - briše deo signala koji model
+treba da nauči.
 
 Potpuna dokumentacija projekta (opis problema, metodologija, rezultati i
 diskusija po fazama specifikacije) je u

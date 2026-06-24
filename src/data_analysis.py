@@ -1,4 +1,3 @@
-import re
 from pathlib import Path
 
 import pandas as pd
@@ -19,15 +18,11 @@ RESULTS_DIR.mkdir(parents=True, exist_ok=True)
 CORRELATION_HEATMAP_PATH = RESULTS_DIR / "correlation_heatmap.png"
 CLASS_DISTRIBUTION_PATH = RESULTS_DIR / "class_distribution.png"
 PCA_SCATTER_PATH = RESULTS_DIR / "pca_scatter.png"
+BOXPLOTS_PATH = RESULTS_DIR / "boxplots_top_features.png"
+HISTOGRAMS_PATH = RESULTS_DIR / "histograms_top_features.png"
 
 TOP_N_FEATURES = 9
-
-
-def sanitize_feature_name(feature):
-    """
-    "MDVP:Fo(Hz)" -> "MDVP_FoHz", da ime fajla bude bezbedno za sve OS.
-    """
-    return re.sub(r"[^0-9a-zA-Z]+", "_", feature).strip("_")
+GRID_ROWS, GRID_COLS = 3, 3
 
 
 def plot_correlation_heatmap(numeric_df, output_path):
@@ -69,14 +64,25 @@ def top_correlated_features(correlation, target="status", n=TOP_N_FEATURES):
     )
 
 
-def plot_feature_boxplot(df, feature, output_path):
-    plt.figure(figsize=(5, 4))
-    sns.boxplot(x="status", y=feature, data=df, hue="status", legend=False)
-    plt.title(f"{feature} po klasama")
-    plt.xlabel("status (0 = zdrav, 1 = Parkinson)")
-    plt.tight_layout()
-    plt.savefig(output_path)
-    plt.close()
+def plot_feature_boxplots(df, features, output_path):
+    """
+    Svi top-N boxplot-ovi na jednoj slici (grid), umesto jednog fajla po
+    atributu - lakše za poređenje na prvi pogled.
+    """
+    fig, axes = plt.subplots(GRID_ROWS, GRID_COLS, figsize=(15, 12))
+
+    for ax, feature in zip(axes.flat, features):
+        sns.boxplot(x="status", y=feature, data=df, hue="status", legend=False, ax=ax)
+        ax.set_title(feature)
+        ax.set_xlabel("status (0 = zdrav, 1 = Parkinson)")
+
+    for ax in axes.flat[len(features):]:
+        ax.axis("off")
+
+    fig.suptitle("Top atributi po korelaciji sa 'status' - raspodela po klasama")
+    fig.tight_layout()
+    fig.savefig(output_path)
+    plt.close(fig)
 
 
 def plot_pca_scatter(numeric_df, output_path):
@@ -117,13 +123,24 @@ def plot_pca_scatter(numeric_df, output_path):
     return explained_variance
 
 
-def plot_feature_histogram(df, feature, output_path):
-    plt.figure(figsize=(5, 4))
-    sns.histplot(data=df, x=feature, hue="status", kde=True, element="step")
-    plt.title(f"Raspodela atributa {feature}")
-    plt.tight_layout()
-    plt.savefig(output_path)
-    plt.close()
+def plot_feature_histograms(df, features, output_path):
+    """
+    Svi top-N histogrami na jednoj slici (grid), umesto jednog fajla po
+    atributu - lakše za poređenje na prvi pogled.
+    """
+    fig, axes = plt.subplots(GRID_ROWS, GRID_COLS, figsize=(15, 12))
+
+    for ax, feature in zip(axes.flat, features):
+        sns.histplot(data=df, x=feature, hue="status", kde=True, element="step", ax=ax)
+        ax.set_title(feature)
+
+    for ax in axes.flat[len(features):]:
+        ax.axis("off")
+
+    fig.suptitle("Top atributi po korelaciji sa 'status' - raspodela vrednosti")
+    fig.tight_layout()
+    fig.savefig(output_path)
+    plt.close(fig)
 
 
 def main():
@@ -169,14 +186,8 @@ def main():
     print(f"\nAtributi najjače korelisani sa 'status' (top {TOP_N_FEATURES}):")
     print(correlation["status"][top_features])
 
-    for feature in top_features:
-        safe_name = sanitize_feature_name(feature)
-        plot_feature_boxplot(
-            numeric_df, feature, RESULTS_DIR / f"boxplot_{safe_name}.png"
-        )
-        plot_feature_histogram(
-            numeric_df, feature, RESULTS_DIR / f"histogram_{safe_name}.png"
-        )
+    plot_feature_boxplots(numeric_df, top_features, BOXPLOTS_PATH)
+    plot_feature_histograms(numeric_df, top_features, HISTOGRAMS_PATH)
 
     print(f"\nGrafici su sačuvani u: {RESULTS_DIR}")
 
