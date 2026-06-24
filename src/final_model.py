@@ -21,6 +21,9 @@ from evaluate import (
     save_confusion_matrix,
     save_roc_curve,
     save_pr_curve,
+    write_title,
+    write_section,
+    write_feature_list,
 )
 
 
@@ -234,26 +237,30 @@ def main():
     hyperparameters_df.to_csv(HYPERPARAMETERS_PATH, index=False)
 
     with open(REPORT_PATH, "w", encoding="utf-8") as file:
-        file.write("Final model: Random Forest\n")
-        file.write("Hyperparameter tuning: GridSearchCV\n")
+        write_title(file, "FINAL MODEL TRAINING REPORT")
         file.write(
-            "Threshold selection method: ROC curve + Youden's index "
-            "(cross-validated on the training set, not the test set)\n\n"
+            "  Model: Random Forest\n"
+            "  Hyperparameter tuning: GridSearchCV\n"
+            "  Threshold selection: ROC curve + Youden's index "
+            "(cross-validated on the training set, not the test set)\n"
         )
 
-        file.write("Selected features:\n")
-        for feature in SELECTED_FEATURES:
-            file.write(f"- {feature}\n")
+        write_section(file, f"SELECTED FEATURES ({len(SELECTED_FEATURES)})")
+        write_feature_list(file, SELECTED_FEATURES)
 
-        file.write("\nBest hyperparameters:\n")
+        write_section(file, "BEST HYPERPARAMETERS")
+        labels = [*best_params.keys(), "Best CV F1-score", "Optimal decision threshold"]
+        name_width = max(len(label) for label in labels)
         for key, value in best_params.items():
-            file.write(f"{key}: {value}\n")
+            file.write(f"  {key:<{name_width}} : {value}\n")
+        file.write(f"\n  {'Best CV F1-score':<{name_width}} : {best_cv_f1:.4f}\n")
+        file.write(
+            f"  {'Optimal decision threshold':<{name_width}} : "
+            f"{decision_threshold:.4f}\n"
+        )
 
-        file.write(f"\nBest CV F1-score: {best_cv_f1:.4f}\n")
-        file.write(f"Optimal decision threshold: {decision_threshold:.4f}\n")
-
-        file.write("\nClassification report:\n")
-        file.write(report)
+        write_section(file, "CLASSIFICATION REPORT")
+        file.write(f"\n{report}")
 
     save_confusion_matrix(y_test, y_pred, CONFUSION_MATRIX_PATH)
     save_roc_curve(y_test, y_prob, ROC_CURVE_PATH)

@@ -35,6 +35,23 @@ from preprocessing import load_data, prepare_features_and_target, split_data
 from predict import load_prediction_artifacts
 
 
+DIVIDER = "=" * 80
+SUBDIVIDER = "-" * 80
+
+
+def write_title(file, title):
+    file.write(f"{DIVIDER}\n{title}\n{DIVIDER}\n")
+
+
+def write_section(file, title):
+    file.write(f"\n{SUBDIVIDER}\n{title}\n{SUBDIVIDER}\n")
+
+
+def write_feature_list(file, features):
+    for index, feature in enumerate(features, start=1):
+        file.write(f"  {index:>2}. {feature}\n")
+
+
 BASE_DIR = Path(__file__).resolve().parents[1]
 
 RESULTS_DIR = BASE_DIR / "results" / "evaluation"
@@ -130,13 +147,16 @@ def main():
     metrics_df.to_csv(METRICS_PATH, index=False)
 
     with open(REPORT_PATH, "w", encoding="utf-8") as file:
-        file.write("Evaluation of the saved model on the test set\n\n")
-        file.write("Selected features:\n")
-        for feature in selected_features:
-            file.write(f"- {feature}\n")
-        file.write(f"\nDecision threshold: {decision_threshold:.4f}\n")
-        file.write("\nClassification report:\n")
-        file.write(report)
+        write_title(file, "EVALUATION OF THE SAVED MODEL ON THE TEST SET")
+
+        write_section(file, f"SELECTED FEATURES ({len(selected_features)})")
+        write_feature_list(file, selected_features)
+
+        write_section(file, "DECISION THRESHOLD")
+        file.write(f"  {decision_threshold:.4f}\n")
+
+        write_section(file, "CLASSIFICATION REPORT")
+        file.write(f"\n{report}")
 
     save_confusion_matrix(y_test, y_pred, CONFUSION_MATRIX_PATH)
     save_roc_curve(y_test, y_prob, ROC_CURVE_PATH)

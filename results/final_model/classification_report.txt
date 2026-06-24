@@ -1,29 +1,39 @@
-Final model: Random Forest
-Hyperparameter tuning: GridSearchCV
-Threshold selection method: ROC curve + Youden's index (cross-validated on the training set, not the test set)
+================================================================================
+FINAL MODEL TRAINING REPORT
+================================================================================
+  Model: Random Forest
+  Hyperparameter tuning: GridSearchCV
+  Threshold selection: ROC curve + Youden's index (cross-validated on the training set, not the test set)
 
-Selected features:
-- PPE
-- MDVP:Flo(Hz)
-- spread1
-- MDVP:Fo(Hz)
-- MDVP:Fhi(Hz)
-- NHR
-- RPDE
-- Jitter:DDP
-- MDVP:Jitter(Abs)
-- spread2
+--------------------------------------------------------------------------------
+SELECTED FEATURES (10)
+--------------------------------------------------------------------------------
+   1. PPE
+   2. MDVP:Flo(Hz)
+   3. spread1
+   4. MDVP:Fo(Hz)
+   5. MDVP:Fhi(Hz)
+   6. NHR
+   7. RPDE
+   8. Jitter:DDP
+   9. MDVP:Jitter(Abs)
+  10. spread2
 
-Best hyperparameters:
-model__max_depth: None
-model__min_samples_leaf: 2
-model__min_samples_split: 5
-model__n_estimators: 100
+--------------------------------------------------------------------------------
+BEST HYPERPARAMETERS
+--------------------------------------------------------------------------------
+  model__max_depth           : None
+  model__min_samples_leaf    : 2
+  model__min_samples_split   : 5
+  model__n_estimators        : 100
 
-Best CV F1-score: 0.8710
-Optimal decision threshold: 0.7693
+  Best CV F1-score           : 0.8710
+  Optimal decision threshold : 0.7693
 
-Classification report:
+--------------------------------------------------------------------------------
+CLASSIFICATION REPORT
+--------------------------------------------------------------------------------
+
               precision    recall  f1-score   support
 
            0       1.00      0.75      0.86        12

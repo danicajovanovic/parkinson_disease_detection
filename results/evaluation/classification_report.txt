@@ -1,20 +1,30 @@
-Evaluation of the saved model on the test set
+================================================================================
+EVALUATION OF THE SAVED MODEL ON THE TEST SET
+================================================================================
 
-Selected features:
-- PPE
-- MDVP:Flo(Hz)
-- spread1
-- MDVP:Fo(Hz)
-- MDVP:Fhi(Hz)
-- NHR
-- RPDE
-- Jitter:DDP
-- MDVP:Jitter(Abs)
-- spread2
+--------------------------------------------------------------------------------
+SELECTED FEATURES (10)
+--------------------------------------------------------------------------------
+   1. PPE
+   2. MDVP:Flo(Hz)
+   3. spread1
+   4. MDVP:Fo(Hz)
+   5. MDVP:Fhi(Hz)
+   6. NHR
+   7. RPDE
+   8. Jitter:DDP
+   9. MDVP:Jitter(Abs)
+  10. spread2
 
-Decision threshold: 0.7693
+--------------------------------------------------------------------------------
+DECISION THRESHOLD
+--------------------------------------------------------------------------------
+  0.7693
 
-Classification report:
+--------------------------------------------------------------------------------
+CLASSIFICATION REPORT
+--------------------------------------------------------------------------------
+
               precision    recall  f1-score   support
 
            0       1.00      0.75      0.86        12
