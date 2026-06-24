@@ -36,11 +36,14 @@ Projekat je podeljen u nekoliko skripti koje se pokreću jedna za drugom, iz
 korena projekta:
 
 ```bash
-python src/data_analysis.py      # eksplorativna analiza
-python src/train.py              # poređenje nekoliko baznih modela (5-fold CV)
+python src/data_analysis.py      # eksplorativna analiza (statistike, korelacije, PCA, grafici u results/graphics)
+python src/anomaly_detection.py  # KNN/LOF/Isolation Forest provera anomalija (results/anomaly_detection)
+python src/train.py              # poređenje baznih modela, uključujući baseline (5-fold CV)
 python src/feature_selection.py  # rangiranje i izbor karakteristika
 python src/final_model.py        # tuning hiperparametara i treniranje finalnog modela
 python src/evaluate.py           # evaluacija sačuvanog modela na test skupu
+python src/learning_curve.py     # train vs CV F1-score u zavisnosti od veličine trening skupa
+python src/split_robustness.py   # koliko rezultat zavisi od izbora train/test split-a
 python src/predict.py            # par primera predikcije u konzoli
 ```
 
@@ -115,6 +118,40 @@ poređenje baznih modela u
 [results/model_comparison/model_comparison.csv](results/model_comparison/model_comparison.csv),
 a kako broj izabranih karakteristika utiče na performanse u
 [results/feature_selection/feature_subset_comparison.csv](results/feature_selection/feature_subset_comparison.csv).
+
+Pošto test skup ima samo 7 osoba, [src/split_robustness.py](src/split_robustness.py)
+dodatno proverava koliko su ove metrike osetljive na konkretan izbor
+train/test split-a, ponavljajući split+trening+evaluaciju za 7 različitih
+random seed-ova (videti [results/final_model/split_robustness.csv](results/final_model/split_robustness.csv)).
+
+[src/learning_curve.py](src/learning_curve.py) prikazuje train vs CV
+F1-score u zavisnosti od veličine trening skupa
+([results/final_model/learning_curve.png](results/final_model/learning_curve.png)):
+na punom trening skupu train F1 ≈ 0.99, CV F1 ≈ 0.84 — razmak od ~0.15
+ukazuje na blagi overfitting, što je realno za Random Forest na skupu od
+ovolike veličine, ali nije alarmantno (CV skor ostaje stabilan, ne pada sa
+više podataka).
+
+Baseline (model koji uvek predviđa većinsku klasu) ima F1 = 0.86 i
+ROC-AUC = 0.50 — visok F1 baseline-a je posledica neravnomernih klasa
+(accuracy paradox), zato je ROC-AUC ovde informativniji pokazatelj da
+baseline ne razlikuje klase, dok svaki ozbiljan model treba da ga pobedi
+po ROC-AUC. Svi bazni modeli (uključujući novododati Gradient Boosting /
+XGBoost) su u
+[results/model_comparison/model_comparison.csv](results/model_comparison/model_comparison.csv).
+
+[src/anomaly_detection.py](src/anomaly_detection.py) primenjuje tri
+nenadgledane metode (KNN distanca, Local Outlier Factor, Isolation Forest)
+da provere postoje li snimci koji značajno odskaču od ostatka skupa. Sve
+tri metode se slažu oko 4 snimka (osobe `S24` i `S35`,
+[results/anomaly_detection/anomaly_overlap.txt](results/anomaly_detection/anomaly_overlap.txt)) -
+nisu uklonjeni, jer kod ovako malog dataset-a izolovanost u prostoru
+atributa pre liči na prirodnu varijaciju izraženosti bolesti nego na
+grešku u merenju.
+
+Potpuna dokumentacija projekta (opis problema, metodologija, rezultati i
+diskusija po fazama specifikacije) je u
+[docs/documentation.md](docs/documentation.md).
 
 ## Web aplikacija
 

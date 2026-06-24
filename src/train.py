@@ -8,11 +8,13 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import cross_validate, StratifiedGroupKFold
 
+from sklearn.dummy import DummyClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.svm import SVC
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier
+from xgboost import XGBClassifier
 
 from preprocessing import load_data, prepare_features_and_target, split_data
 from metrics import SCORING, scores_to_row
@@ -30,11 +32,17 @@ CV_BOXPLOT_PATH = RESULTS_DIR / "cv_scores_boxplot.png"
 
 def get_models():
     models = {
+        # Baseline - uvek predviđa većinsku klasu (Parkinson). Svaki ozbiljan
+        # model mora da bude bolji od ovoga, inače ne donosi nikakvu vrednost.
+        "Baseline (majority class)": DummyClassifier(strategy="most_frequent"),
         "Logistic Regression": LogisticRegression(max_iter=1000),
         "KNN": KNeighborsClassifier(),
         "SVM": SVC(probability=True, random_state=42),
         "Decision Tree": DecisionTreeClassifier(random_state=42),
         "Random Forest": RandomForestClassifier(random_state=42),
+        "Gradient Boosting (XGBoost)": XGBClassifier(
+            random_state=42, eval_metric="logloss"
+        ),
     }
 
     return models
@@ -80,12 +88,12 @@ def plot_model_comparison_bar(results_df, output_path):
     x = np.arange(len(models))
     width = 0.15
 
-    plt.figure(figsize=(11, 6))
+    plt.figure(figsize=(13, 6))
     for index, metric in enumerate(metrics):
         offset = (index - (len(metrics) - 1) / 2) * width
         plt.bar(x + offset, results_df[metric], width=width, label=metric)
 
-    plt.xticks(x, models)
+    plt.xticks(x, models, rotation=15, ha="right")
     plt.ylim(0, 1.05)
     plt.ylabel("Score (5-fold CV mean)")
     plt.title("Poređenje baznih modela")

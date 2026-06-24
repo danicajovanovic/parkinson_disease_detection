@@ -1,0 +1,12 @@
+Detekcija anomalija - KNN, LOF, Isolation Forest
+
+Top-10 po metodi se preklapaju u 4 uzoraka.
+
+Uzorci u preseku sve tri metode:
+               name subject  status
+100  phon_R01_S24_4     S24       1
+102  phon_R01_S24_6     S24       1
+151  phon_R01_S35_6     S35       1
+152  phon_R01_S35_7     S35       1
+
+Zaključak: uzorci nisu uklonjeni iz skupa - dataset je vec mali (195 snimaka, 32 osobe), a izolovanost u prostoru atributa kod biomedicinskih signala često odražava prirodnu varijaciju glasa (npr. teže izražen Parkinson), ne grešku u merenju. Uklanjanje bi rizikovalo da se izgubi baš signal koji model treba da nauči.

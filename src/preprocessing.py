@@ -35,7 +35,7 @@ def prepare_features_and_target(df):
     return X, y, groups
 
 
-def split_data(X, y, groups):
+def split_data(X, y, groups, random_state=42):
     """
     Deli podatke na trening i test skup, na nivou osobe (subjekta), ne na
     nivou pojedinačnog snimka.
@@ -50,6 +50,10 @@ def split_data(X, y, groups):
     Ne pravi se poseban validation skup jer dataset ima samo 32 osobe.
     Validacija ce se kasnije raditi pomocu 5-fold Group Cross Validation
     na trening skupu.
+
+    random_state je parametrizovan (a ne fiksiran na 42 unutar funkcije) da
+    bi se moglo proveriti koliko je jedan konkretan 80/20 split "sreća" -
+    videti src/split_robustness.py.
     """
     subject_status = (
         pd.DataFrame({"subject": groups, "status": y})
@@ -60,7 +64,7 @@ def split_data(X, y, groups):
     train_subjects, test_subjects = train_test_split(
         subject_status.index.to_numpy(),
         test_size=0.2,
-        random_state=42,
+        random_state=random_state,
         stratify=subject_status.to_numpy()
     )
 
