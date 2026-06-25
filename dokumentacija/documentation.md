@@ -161,8 +161,14 @@ ovih 10 atributa korišćeno u finalnom modelu.
 
 ## 6. Podešavanje hiperparametara i analiza rezultata predikcije
 
-Implementirano u [src/final_model.py](../src/final_model.py), rezultati u
-[results/final_model/](../results/final_model/).
+Treniranje finalnog modela ([src/final_model.py](../src/final_model.py),
+rezultati u [results/final_model/](../results/final_model/)) i evaluacija na
+test skupu ([src/evaluate.py](../src/evaluate.py), rezultati u
+[results/evaluation/](../results/evaluation/)) su odvojeni u dva samostalna
+koraka: `final_model.py` trenira model, bira atribute i prag odlučivanja
+isključivo na trening skupu i ne dotiče test skup ni na jedan način, a tek
+nakon toga `evaluate.py` učitava već sačuvane artefakte iz `models/` i
+evaluira ih na test skupu, bez ponovnog treniranja.
 
 **Hiperparametri** Random Forest-a su podešeni pomoću `GridSearchCV` (5-fold
 group CV, scoring = F1) nad gridom za `n_estimators`, `max_depth`,
@@ -183,7 +189,8 @@ n_estimators=100` (Best CV F1-score = 0.871).
   threshold: **0.769**.
 
 **Rezultati na test skupu** (7 osoba, 43 snimka, nikada korišćeno tokom
-selekcije modela/hiperparametara/threshold-a):
+selekcije modela/hiperparametara/threshold-a), dobijeni pokretanjem
+`src/evaluate.py` kao posebnog koraka nakon treniranja:
 
 | Metrika | Vrednost |
 |---|---|
@@ -194,7 +201,8 @@ selekcije modela/hiperparametara/threshold-a):
 | ROC-AUC | 97.0% |
 
 Matrica konfuzije, ROC kriva i Precision-Recall kriva su u
-`confusion_matrix.png`, `roc_curve.png`, `precision_recall_curve.png`.
+[results/evaluation/](../results/evaluation/): `confusion_matrix.png`,
+`roc_curve.png`, `precision_recall_curve.png`.
 
 **Diskusija i ograničenja.** Recall od 100% na test skupu znači da model
 nije propustio nijedan slučaj Parkinsona u testu, ali test skup ima samo 7
