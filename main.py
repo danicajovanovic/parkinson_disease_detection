@@ -1,19 +1,22 @@
 """
-Entry point for the Parkinson's Disease Detection project.
+Ulazna tačka projekta za detekciju Parkinsonove bolesti.
 
-The full pipeline is split into individual scripts under src/, meant to be
-run in order the first time the project is set up:
+Ceo pipeline je podeljen u pojedinačne skripte u src/, koje treba pokrenuti
+ovim redosledom prilikom prvog podešavanja projekta:
 
-    1. python src/data_analysis.py      - exploratory data analysis
-    2. python src/train.py              - compare baseline models (5-fold CV)
-    3. python src/feature_selection.py  - rank features, pick the best subset
-    4. python src/final_model.py        - tune hyperparameters and save the
-                                           final model, threshold and features
-    5. python src/predict.py            - run example predictions in the console
-    6. streamlit run app/ui.py          - launch the web interface
+    1. python src/data_analysis.py      - eksplorativna analiza podataka
+    2. python src/train.py              - poređenje baznih modela (5-fold CV)
+    3. python src/feature_selection.py  - rangiranje atributa, izbor najboljeg podskupa
+    4. python src/final_model.py        - podešavanje hiperparametara i čuvanje
+                                           finalnog modela, praga i atributa
+                                           (trening, ne dotiče test skup)
+    5. python src/evaluate.py           - evaluacija sačuvanog modela na test
+                                           skupu (poseban korak od treniranja)
+    6. python src/predict.py            - primer predikcija u konzoli
+    7. streamlit run app/ui.py          - pokretanje veb interfejsa
 
-Running this script directly checks whether a trained model is already
-available and, if so, runs the example predictions from src/predict.py.
+Direktno pokretanje ove skripte provera da li je treniran model već
+dostupan i, ako jeste, pokreće primer predikcija iz src/predict.py.
 """
 
 import sys

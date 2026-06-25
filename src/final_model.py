@@ -16,15 +16,7 @@ from sklearn.model_selection import (
 from sklearn.metrics import roc_curve
 
 from preprocessing import load_data, prepare_features_and_target, split_data
-from evaluate import (
-    evaluate_model,
-    save_confusion_matrix,
-    save_roc_curve,
-    save_pr_curve,
-    write_title,
-    write_section,
-    write_feature_list,
-)
+from evaluate import write_title, write_section, write_feature_list
 
 
 BASE_DIR = Path(__file__).resolve().parents[1]
@@ -39,12 +31,8 @@ MODEL_PATH = MODELS_DIR / "best_model.joblib"
 FEATURES_PATH = MODELS_DIR / "selected_features.joblib"
 THRESHOLD_PATH = MODELS_DIR / "decision_threshold.joblib"
 
-METRICS_PATH = RESULTS_DIR / "final_model_metrics.csv"
 HYPERPARAMETERS_PATH = RESULTS_DIR / "best_hyperparameters.csv"
-REPORT_PATH = RESULTS_DIR / "classification_report.txt"
-CONFUSION_MATRIX_PATH = RESULTS_DIR / "confusion_matrix.png"
-ROC_CURVE_PATH = RESULTS_DIR / "roc_curve.png"
-PR_CURVE_PATH = RESULTS_DIR / "precision_recall_curve.png"
+REPORT_PATH = RESULTS_DIR / "training_report.txt"
 HYPERPARAMETER_HEATMAP_PATH = RESULTS_DIR / "hyperparameter_heatmap.png"
 
 SELECTED_FEATURES = [
@@ -163,12 +151,18 @@ def find_optimal_threshold(y_true, y_prob):
 
 
 def main():
+    """
+    Trenira finalni model i čuva njegove artefakte (model, izabrane atribute,
+    prag odlučivanja). Ne dotiče test skup ni na jedan način - njegova
+    evaluacija je posao src/evaluate.py, pokrenutog kao samostalan korak
+    nakon treniranja.
+    """
     df = load_data()
 
     X, y, groups = prepare_features_and_target(df)
-    X_train, X_test, y_train, y_test, groups_train, groups_test = split_data(
-        X, y, groups
-    )
+    # X_test/y_test se ovde ignorišu - split_data se zove samo da bi se,
+    # uz isti random_state, dobio isti X_train kao i u evaluate.py.
+    X_train, _, y_train, _, groups_train, _ = split_data(X, y, groups)
 
     X_train_selected = X_train[SELECTED_FEATURES]
 
@@ -178,11 +172,11 @@ def main():
         groups_train
     )
 
-    # The decision threshold must not be chosen using the test set, otherwise
-    # the test labels leak into the model selection process and the final
-    # metrics become optimistically biased. Instead, the threshold is chosen
-    # using out-of-fold predicted probabilities on the training set only.
-    # Grouped by subject, same as the hyperparameter search above.
+    # Prag odlučivanja ne sme se birati na osnovu test skupa, jer bi tako
+    # oznake iz test skupa "iscurile" u proces izbora modela, što bi
+    # optimistički iskrivilo finalne metrike. Umesto toga, prag se bira na
+    # osnovu out-of-fold predviđenih verovatnoća, isključivo na trening skupu.
+    # Grupisano po subjektu, isto kao i pretraga hiperparametara iznad.
     cv_probabilities = cross_val_predict(
         model,
         X_train_selected,
@@ -193,13 +187,6 @@ def main():
     )[:, 1]
 
     decision_threshold = find_optimal_threshold(y_train, cv_probabilities)
-
-    eval_metrics, report, y_pred, y_prob = evaluate_model(
-        model, SELECTED_FEATURES, decision_threshold, X_test, y_test
-    )
-
-    metrics = {"Best CV F1-score": best_cv_f1, **eval_metrics}
-    metrics_df = pd.DataFrame([metrics])
 
     hyperparameters_df = pd.DataFrame([{
         "Best CV F1-score": best_cv_f1,
@@ -218,22 +205,6 @@ def main():
 
     print(f"\nOptimal decision threshold: {decision_threshold:.4f}")
 
-    print("\nClassification report:")
-    print(report)
-
-    print("\nFinal metrics:")
-    print(metrics_df)
-
-    print("\nWrong classifications:")
-    for real, prob, pred in zip(y_test, y_prob, y_pred):
-        if real != pred:
-            print(
-                f"True class={real}, "
-                f"Probability={prob:.2f}, "
-                f"Prediction={pred}"
-            )
-
-    metrics_df.to_csv(METRICS_PATH, index=False)
     hyperparameters_df.to_csv(HYPERPARAMETERS_PATH, index=False)
 
     with open(REPORT_PATH, "w", encoding="utf-8") as file:
@@ -259,12 +230,6 @@ def main():
             f"{decision_threshold:.4f}\n"
         )
 
-        write_section(file, "CLASSIFICATION REPORT")
-        file.write(f"\n{report}")
-
-    save_confusion_matrix(y_test, y_pred, CONFUSION_MATRIX_PATH)
-    save_roc_curve(y_test, y_prob, ROC_CURVE_PATH)
-    save_pr_curve(y_test, y_prob, PR_CURVE_PATH)
     plot_hyperparameter_heatmap(cv_results, best_params, HYPERPARAMETER_HEATMAP_PATH)
 
     joblib.dump(model, MODEL_PATH)
@@ -275,6 +240,10 @@ def main():
     print(f"Selected features saved to: {FEATURES_PATH}")
     print(f"Decision threshold saved to: {THRESHOLD_PATH}")
     print(f"Results saved to: {RESULTS_DIR}")
+    print(
+        "\nNote: the model has not been evaluated on the test set yet. "
+        "Run 'python src/evaluate.py' to do that as a separate step."
+    )
 
 
 if __name__ == "__main__":

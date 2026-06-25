@@ -36,7 +36,7 @@ def predict_from_features(model, selected_features, decision_threshold, input_df
 
 def predict_parkinson(input_data):
     """
-    Convenience wrapper: učitava artefakte i predviđa na osnovu dict-a sa
+    Pomoćna funkcija: učitava artefakte i predviđa na osnovu dict-a sa
     sirovim vrednostima atributa (npr. iz UI forme).
     """
     model, selected_features, decision_threshold = load_prediction_artifacts()
@@ -80,10 +80,11 @@ def main():
         candidates = [i for i in range(len(y_test)) if y_test.iloc[i] == status_value]
         random.shuffle(candidates)
 
-        # Prefer an example the model actually gets right, so the demo isn't
-        # confusing on the rare cases where the model is wrong (it isn't
-        # 100% accurate - see results/final_model/classification_report.txt).
-        # The order is shuffled above so a different example shows each run.
+        # Bira se primer koji model tačno predviđa, da demo ne bude zbunjujuć
+        # u retkim slučajevima kada model pogreši (nije 100% tačan - vidi
+        # results/evaluation/classification_report.txt).
+        # Redosled je promešan iznad, pa se pri svakom pokretanju prikazuje
+        # drugi primer.
         chosen = candidates[0]
         for i in candidates:
             sample = X_test.iloc[i:i + 1]

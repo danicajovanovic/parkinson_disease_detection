@@ -29,16 +29,3 @@ BEST HYPERPARAMETERS
 
   Best CV F1-score           : 0.8710
   Optimal decision threshold : 0.7693
-
---------------------------------------------------------------------------------
-CLASSIFICATION REPORT
---------------------------------------------------------------------------------
-
-              precision    recall  f1-score   support
-
-           0       1.00      0.75      0.86        12
-           1       0.91      1.00      0.95        31
-
-    accuracy                           0.93        43
-   macro avg       0.96      0.88      0.91        43
-weighted avg       0.94      0.93      0.93        43

@@ -1,6 +1,7 @@
 """
-Shared evaluation utilities used by the model comparison, feature selection
-and final model scripts, so the scoring definition stays in one place.
+Zajedničke pomoćne funkcije za evaluaciju koje koriste skripte za poređenje
+modela, izbor atributa i finalni model, da definicija metrika ostane na
+jednom mestu.
 """
 
 SCORING = {

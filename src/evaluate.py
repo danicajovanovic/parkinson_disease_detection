@@ -1,16 +1,16 @@
 """
-Evaluation utilities for the Parkinson's disease model.
+Pomoćne funkcije za evaluaciju modela za Parkinsonovu bolest.
 
-This module is the single place where test-set metrics, the classification
-report, the confusion matrix and the ROC curve are computed, so that logic
-is not duplicated between the training script (final_model.py) and a
-standalone evaluation run.
+Ovaj modul je jedino mesto gde se računaju metrike na test skupu,
+classification report, matrica konfuzije i ROC kriva, da se ta logika
+ne bi duplirala između skripte za treniranje (final_model.py) i
+samostalnog pokretanja evaluacije.
 
-Running this file directly evaluates whatever model is currently saved in
-models/ against the test set, without retraining anything (useful to
-re-check a saved model, e.g. after pulling new artifacts). Results are
-written to results/evaluation/, separate from the training-time report in
-results/final_model/.
+Direktno pokretanje ovog fajla evaluira model koji je trenutno sačuvan u
+models/ na test skupu, bez ponovnog treniranja (korisno za ponovnu proveru
+sačuvanog modela, npr. nakon preuzimanja novih artefakata). Rezultati se
+upisuju u results/evaluation/, odvojeno od izveštaja iz vremena treniranja
+u results/final_model/.
 """
 
 from pathlib import Path
@@ -66,10 +66,9 @@ PR_CURVE_PATH = RESULTS_DIR / "precision_recall_curve.png"
 
 def evaluate_model(model, selected_features, decision_threshold, X_test, y_test):
     """
-    Evaluates a fitted model on the test set using a fixed decision
-    threshold. Returns the metrics dict, the textual classification report,
-    and the predictions/probabilities (needed for the confusion matrix and
-    ROC curve plots).
+    Evaluira istreniran model na test skupu koristeći fiksni prag
+    odlučivanja. Vraća rečnik metrika, tekstualni classification report,
+    i predikcije/verovatnoće (potrebne za matricu konfuzije i ROC krivu).
     """
     X_test_selected = X_test[selected_features]
 

@@ -8,18 +8,18 @@ import streamlit as st
 BASE_DIR = Path(__file__).resolve().parents[1]
 SRC_DIR = BASE_DIR / "src"
 
-# The prediction logic lives in src/predict.py and is reused here instead of
-# being duplicated, since src/ is not set up as an installable package.
+# Logika predikcije se nalazi u src/predict.py i ovde se ponovo koristi
+# umesto da se duplira, jer src/ nije podešen kao instalabilan paket.
 sys.path.insert(0, str(SRC_DIR))
 from predict import (  # noqa: E402
     load_prediction_artifacts as _load_prediction_artifacts,
     predict_from_features,
 )
 
-METRICS_PATH = BASE_DIR / "results" / "final_model" / "final_model_metrics.csv"
+METRICS_PATH = BASE_DIR / "results" / "evaluation" / "evaluation_metrics.csv"
 
-# Display metadata for each biomarker input (label, tooltip, default value and
-# a sensible min/max/step/format derived from the training dataset).
+# Metapodaci za prikaz svakog biomarkera (naziv, opis, podrazumevana vrednost
+# i razumni min/max/step/format izvedeni iz trening dataseta).
 FEATURE_INFO = {
     "PPE": {
         "label": "PPE (Pitch Period Entropy)",
